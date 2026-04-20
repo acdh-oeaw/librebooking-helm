@@ -7,6 +7,7 @@ metadata:
     {{- include "librebooking.labels" . | nindent 4 }}
   annotations:
     kubernetes.io/ingress.class: {{ .Values.ingress.className | default "nginx" | quote }}
+    # Fix URL generation behind proxy - remove :8080 from generated URLs
     nginx.ingress.kubernetes.io/proxy-redirect-from: "http://$host:8080"
     nginx.ingress.kubernetes.io/proxy-redirect-to: "http://$host"
     nginx.ingress.kubernetes.io/proxy-redirect-from-https: "https://$host:8080"

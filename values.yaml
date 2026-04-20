@@ -58,6 +58,7 @@ app:
 
   # Optional
   appPath: ""                             # APP_PATH (e.g., /librebooking)
+  scriptUrl: ""                           # LB_SCRIPT_URL - Override app URL (e.g., https://booking.example.org/Web)
 
 # Persistence (Kubernetes PVCs instead of bind mounts)
 persistence:

@@ -152,6 +152,11 @@ spec:
                   key: mysql-password
             {{- end }}
 
+            {{- if .Values.app.scriptUrl }}
+            - name: LB_SCRIPT_URL
+              value: {{ .Values.app.scriptUrl | quote }}
+            {{- end }}
+
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{ end }}
