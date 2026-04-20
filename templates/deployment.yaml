@@ -26,6 +26,34 @@ spec:
 
       serviceAccountName: {{ include "librebooking.serviceAccountName" . }}
 
+      {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+      initContainers:
+        - name: copy-config
+          image: busybox:1.36.1
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              if [ -f /source/booking/config.php ]; then
+                cp /source/booking/config.php /config/config.php
+              fi
+              if [ -f /source/ldap/ldap.config.php ]; then
+                cp /source/ldap/ldap.config.php /config/ldap.config.php
+              fi
+          volumeMounts:
+            - name: config-copy
+              mountPath: /config
+            {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName }}
+            - name: booking-config
+              mountPath: /source/booking
+            {{- end }}
+            {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+            - name: ldap-config
+              mountPath: /source/ldap
+            {{- end }}
+      {{- end }}
+
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -123,17 +151,9 @@ spec:
           {{- end }}
 
           volumeMounts:
-            {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName }}
-            - name: booking-config
-              mountPath: /config/config.php
-              subPath: config.php
-              readOnly: true
-            {{- end }}
-            {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
-            - name: ldap-config
-              mountPath: /config/ldap.config.php
-              subPath: ldap.config.php
-              readOnly: true
+            {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+            - name: config-copy
+              mountPath: /config
             {{- end }}
 
             {{- $p := default (dict) .Values.persistence -}}
@@ -167,6 +187,11 @@ spec:
             {{- end }}
 
       volumes:
+        {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+        - name: config-copy
+          emptyDir: {}
+        {{- end }}
+
         {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName }}
         - name: booking-config
           {{- if .Values.config.bookingSecretName }}
