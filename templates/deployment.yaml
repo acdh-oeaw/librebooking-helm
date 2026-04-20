@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "librebooking.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicaCount | default 1 }}
+  replicas: {{ default 1 .Values.replicaCount }}
   selector:
     matchLabels:
       {{- include "librebooking.selectorLabels" . | nindent 6 }}
@@ -15,9 +15,9 @@ spec:
         {{- include "librebooking.selectorLabels" . | nindent 8 }}
       annotations:
         # Rollout trigger for external config changes
-        config/reload-token: {{ .Values.config.reloadToken | default "v1" | quote }}
-        {{- if .Values.podAnnotations }}
-        {{- toYaml .Values.podAnnotations | nindent 8 }}
+        config/reload-token: {{ default "v1" .Values.config.reloadToken | quote }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
@@ -27,15 +27,21 @@ spec:
 
       serviceAccountName: {{ include "librebooking.serviceAccountName" . }}
 
+      {{- with .Values.podSecurityContext }}
       securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 
       containers:
         - name: librebooking
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+          image: "{{ .Values.image.repository }}:{{ default "latest" .Values.image.tag }}"
+          imagePullPolicy: {{ default "IfNotPresent" .Values.image.pullPolicy }}
+
+          {{- with .Values.securityContext }}
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
           ports:
             - name: http
               containerPort: 8080
@@ -44,13 +50,13 @@ spec:
           env:
             # App-specific settings
             - name: LB_DEFAULT_TIMEZONE
-              value: "{{ .Values.app.defaultTimezone | default "UTC" }}"
+              value: "{{ default "UTC" (.Values.app.defaultTimezone) }}"
             - name: LB_LOGGING_FOLDER
-              value: "{{ .Values.app.loggingFolder | default "/var/log/librebooking" }}"
+              value: "{{ default "/var/log/librebooking" (.Values.app.loggingFolder) }}"
             - name: LB_LOGGING_LEVEL
-              value: "{{ .Values.app.loggingLevel | default "INFO" }}"
+              value: "{{ default "INFO" (.Values.app.loggingLevel) }}"
             - name: LB_LOGGING_SQL
-              value: "{{ .Values.app.loggingSql | default "false" }}"
+              value: "{{ default "false" (.Values.app.loggingSql) }}"
             {{- if .Values.app.appPath }}
             - name: APP_PATH
               value: "{{ .Values.app.appPath }}"
@@ -60,8 +66,8 @@ spec:
             - name: LB_INSTALL_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.app.existingSecretName | default (printf "%s-install" (include "librebooking.fullname" .)) }}
-                  key: {{ .Values.app.existingSecretKey | default "LB_INSTALL_PASSWORD" }}
+                  name: {{ default (printf "%s-install" (include "librebooking.fullname" .)) .Values.app.existingSecretName }}
+                  key: {{ default "LB_INSTALL_PASSWORD" .Values.app.existingSecretKey }}
 
             # Database configuration
             {{- if .Values.externalDatabase.enabled }}
@@ -74,8 +80,8 @@ spec:
             - name: LB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.externalDatabase.existingSecretName | default (printf "%s-db" (include "librebooking.fullname" .)) }}
-                  key: {{ .Values.externalDatabase.existingSecretKey | default "db-password" }}
+                  name: {{ default (printf "%s-db" (include "librebooking.fullname" .)) .Values.externalDatabase.existingSecretName }}
+                  key: {{ default "db-password" .Values.externalDatabase.existingSecretKey }}
             {{- else if .Values.mariadb.enabled }}
             - name: LB_DATABASE_HOSTSPEC
               value: {{ printf "%s-mariadb" (include "librebooking.fullname" .) | quote }}
@@ -86,7 +92,7 @@ spec:
             - name: LB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.mariadb.auth.existingSecretName | default (printf "%s-mariadb" (include "librebooking.fullname" .)) }}
+                  name: {{ default (printf "%s-mariadb" (include "librebooking.fullname" .)) .Values.mariadb.auth.existingSecretName }}
                   key: mysql-password
             {{- end }}
 
@@ -94,23 +100,29 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
 
+          {{- $l := default (dict) .Values.livenessProbe -}}
+          {{- $r := default (dict) .Values.readinessProbe -}}
+
           livenessProbe:
             httpGet:
               path: {{ if .Values.app.appPath }}{{ printf "%s/" .Values.app.appPath }}{{ else }}/{{ end }}
               port: http
-            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds | default 30 }}
-            periodSeconds: {{ .Values.livenessProbe.periodSeconds | default 15 }}
-            failureThreshold: {{ .Values.livenessProbe.failureThreshold | default 6 }}
+            initialDelaySeconds: {{ default 30 $l.initialDelaySeconds }}
+            periodSeconds: {{ default 15 $l.periodSeconds }}
+            failureThreshold: {{ default 6 $l.failureThreshold }}
 
           readinessProbe:
             httpGet:
               path: {{ if .Values.app.appPath }}{{ printf "%s/" .Values.app.appPath }}{{ else }}/{{ end }}
               port: http
-            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds | default 20 }}
-            periodSeconds: {{ .Values.readinessProbe.periodSeconds | default 10 }}
+            initialDelaySeconds: {{ default 20 $r.initialDelaySeconds }}
+            periodSeconds: {{ default 10 $r.periodSeconds }}
+            failureThreshold: {{ default 3 $r.failureThreshold }}
 
+          {{- with .Values.resources }}
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
 
           volumeMounts:
             # Mount read-only config files from external ConfigMaps/Secrets
@@ -127,24 +139,32 @@ spec:
               readOnly: true
             {{- end }}
 
-            {{- if .Values.persistence.logs.enabled }}
+            {{- $p := default (dict) .Values.persistence -}}
+            {{- $logs := default (dict) $p.logs -}}
+            {{- $images := default (dict) $p.uploadsImages -}}
+            {{- $res := default (dict) $p.uploadsReservation -}}
+
+            {{- if $logs.enabled }}
             - name: logs
-              mountPath: "{{ .Values.persistence.logs.mountPath }}"
+              mountPath: "{{ $logs.mountPath }}"
             {{- end }}
-            {{- if .Values.persistence.uploadsImages.enabled }}
+            {{- if $images.enabled }}
             - name: uploads-images
-              mountPath: "{{ .Values.persistence.uploadsImages.mountPath }}"
+              mountPath: "{{ $images.mountPath }}"
             {{- end }}
-            {{- if .Values.persistence.uploadsReservation.enabled }}
+            {{- if $res.enabled }}
             - name: uploads-reservation
-              mountPath: "{{ .Values.persistence.uploadsReservation.mountPath }}"
+              mountPath: "{{ $res.mountPath }}"
             {{- end }}
-            {{- if .Values.favicon.enabled }}
+
+            {{- $fav := default (dict) .Values.favicon -}}
+            {{- if $fav.enabled }}
             - name: favicon
-              mountPath: "{{ .Values.favicon.path }}"
+              mountPath: "{{ $fav.path }}"
               subPath: "favicon.ico"
               readOnly: true
             {{- end }}
+
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -186,53 +206,69 @@ spec:
           {{- end }}
         {{- end }}
 
-        {{- if .Values.persistence.logs.enabled }}
+        {{- $p := default (dict) .Values.persistence -}}
+        {{- $logs := default (dict) $p.logs -}}
+        {{- $images := default (dict) $p.uploadsImages -}}
+        {{- $res := default (dict) $p.uploadsReservation -}}
+
+        {{- if $logs.enabled }}
         - name: logs
-          {{- if .Values.persistence.logs.existingClaim }}
+          {{- if $logs.existingClaim }}
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.logs.existingClaim }}
+            claimName: {{ $logs.existingClaim }}
           {{- else }}
           persistentVolumeClaim:
             claimName: {{ include "librebooking.fullname" . }}-logs
           {{- end }}
         {{- end }}
-        {{- if .Values.persistence.uploadsImages.enabled }}
+
+        {{- if $images.enabled }}
         - name: uploads-images
-          {{- if .Values.persistence.uploadsImages.existingClaim }}
+          {{- if $images.existingClaim }}
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.uploadsImages.existingClaim }}
+            claimName: {{ $images.existingClaim }}
           {{- else }}
           persistentVolumeClaim:
             claimName: {{ include "librebooking.fullname" . }}-uploads-images
           {{- end }}
         {{- end }}
-        {{- if .Values.persistence.uploadsReservation.enabled }}
+
+        {{- if $res.enabled }}
         - name: uploads-reservation
-          {{- if .Values.persistence.uploadsReservation.existingClaim }}
+          {{- if $res.existingClaim }}
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.uploadsReservation.existingClaim }}
+            claimName: {{ $res.existingClaim }}
           {{- else }}
           persistentVolumeClaim:
             claimName: {{ include "librebooking.fullname" . }}-uploads-reservation
           {{- end }}
         {{- end }}
-        {{- if .Values.favicon.enabled }}
+
+        {{- $fav := default (dict) .Values.favicon -}}
+        {{- if $fav.enabled }}
         - name: favicon
-          {{- if eq .Values.favicon.type "secret" }}
+          {{- if eq (default "configmap" $fav.type) "secret" }}
           secret:
-            secretName: {{ .Values.favicon.name }}
+            secretName: {{ $fav.name }}
           {{- else }}
           configMap:
-            name: {{ .Values.favicon.name }}
+            name: {{ $fav.name }}
           {{- end }}
         {{- end }}
+
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
 
+      {{- with .Values.nodeSelector }}
       nodeSelector:
-        {{- toYaml .Values.nodeSelector | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
       tolerations:
-        {{- toYaml .Values.tolerations | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
       affinity:
-        {{- toYaml .Values.affinity | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
