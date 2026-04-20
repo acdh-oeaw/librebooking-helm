@@ -38,22 +38,38 @@ spec:
               # Ensure /config directory exists with proper permissions
               mkdir -p /config
               
-              # Copy booking config if available
-              if [ -f /source/booking/config.php ]; then
-                cp /source/booking/config.php /config/config.php
-              fi
+              echo "=== Init container: checking source directories ==="
               
-              # Copy LDAP config if available
-              if [ -f /source/ldap/ldap.config.php ]; then
-                cp /source/ldap/ldap.config.php /config/ldap.config.php
+              {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName }}
+              echo "Checking /source/booking:"
+              ls -la /source/booking/ || echo "Directory not found or empty"
+              if [ -f /source/booking/config.php ]; then
+                echo "Copying /source/booking/config.php to /config/config.php"
+                cp /source/booking/config.php /config/config.php
+              else
+                echo "WARNING: /source/booking/config.php not found"
               fi
+              {{- end }}
+              
+              {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+              echo "Checking /source/ldap:"
+              ls -la /source/ldap/ || echo "Directory not found or empty"
+              if [ -f /source/ldap/ldap.config.php ]; then
+                echo "Copying /source/ldap/ldap.config.php to /config/ldap.config.php"
+                cp /source/ldap/ldap.config.php /config/ldap.config.php
+              else
+                echo "WARNING: /source/ldap/ldap.config.php not found"
+              fi
+              {{- end }}
               
               # Set ownership to www-data (UID 33) and permissions so sed -i can create temp files
+              echo "Setting permissions on /config directory and files..."
               chown -R 33:33 /config
               chmod 775 /config
-              chmod 644 /config/*.php 2>/dev/null || true
+              find /config -type f -name "*.php" -exec chmod 644 {} \;
               
               # List final state for verification
+              echo "=== Final state of /config directory ==="
               ls -la /config/
           volumeMounts:
             - name: config-copy
@@ -158,6 +174,23 @@ spec:
             initialDelaySeconds: {{ default 20 $r.initialDelaySeconds }}
             periodSeconds: {{ default 10 $r.periodSeconds }}
             failureThreshold: {{ default 3 $r.failureThreshold }}
+
+          {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    # Create LDAP symlink if config file exists and symlink doesn't already exist
+                    if [ -f /config/ldap.config.php ]; then
+                      if ! [ -e /var/www/html/config/ldap.config.php ]; then
+                        echo "Creating symlink: /var/www/html/config/ldap.config.php -> /config/ldap.config.php"
+                        ln -s /config/ldap.config.php /var/www/html/config/ldap.config.php
+                      fi
+                    fi
+          {{- end }}
 
           {{- with .Values.resources }}
           resources:
