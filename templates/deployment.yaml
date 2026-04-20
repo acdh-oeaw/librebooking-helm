@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "librebooking.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.replicaCount | default 1 }}
   selector:
     matchLabels:
       {{- include "librebooking.selectorLabels" . | nindent 6 }}
@@ -14,73 +14,43 @@ spec:
       labels:
         {{- include "librebooking.selectorLabels" . | nindent 8 }}
       annotations:
+        # Rollout trigger for external config changes
+        config/reload-token: {{ .Values.config.reloadToken | default "v1" | quote }}
         {{- if .Values.podAnnotations }}
         {{- toYaml .Values.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      serviceAccountName: {{ include "librebooking.serviceAccountName" . }}
+
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-
-      # Init container to set correct permissions on mounted volumes
-      initContainers:
-        - name: fix-permissions
-          image: alpine:3.19
-          securityContext:
-            runAsUser: 0
-          command:
-            - sh
-            - -c
-            - |
-              set -e
-              {{- if .Values.persistence.logs.enabled }}
-              mkdir -p "{{ .Values.persistence.logs.mountPath }}"
-              chown -R 33:33 "{{ .Values.persistence.logs.mountPath }}" || true
-              chmod -R g+rwX "{{ .Values.persistence.logs.mountPath }}" || true
-              {{- end }}
-              {{- if .Values.persistence.uploadsImages.enabled }}
-              mkdir -p "{{ .Values.persistence.uploadsImages.mountPath }}"
-              chown -R 33:33 "{{ .Values.persistence.uploadsImages.mountPath }}" || true
-              chmod -R g+rwX "{{ .Values.persistence.uploadsImages.mountPath }}" || true
-              {{- end }}
-              {{- if .Values.persistence.uploadsReservation.enabled }}
-              mkdir -p "{{ .Values.persistence.uploadsReservation.mountPath }}"
-              chown -R 33:33 "{{ .Values.persistence.uploadsReservation.mountPath }}" || true
-              chmod -R g+rwX "{{ .Values.persistence.uploadsReservation.mountPath }}" || true
-              {{- end }}
-          volumeMounts:
-            {{- if .Values.persistence.logs.enabled }}
-            - name: logs
-              mountPath: "{{ .Values.persistence.logs.mountPath }}"
-            {{- end }}
-            {{- if .Values.persistence.uploadsImages.enabled }}
-            - name: uploads-images
-              mountPath: "{{ .Values.persistence.uploadsImages.mountPath }}"
-            {{- end }}
-            {{- if .Values.persistence.uploadsReservation.enabled }}
-            - name: uploads-reservation
-              mountPath: "{{ .Values.persistence.uploadsReservation.mountPath }}"
-            {{- end }}
 
       containers:
         - name: librebooking
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           ports:
             - name: http
               containerPort: 8080
               protocol: TCP
+
           env:
-            # Required env per RUN.md
+            # App-specific settings
             - name: LB_DEFAULT_TIMEZONE
-              value: "{{ .Values.app.defaultTimezone }}"
+              value: "{{ .Values.app.defaultTimezone | default "UTC" }}"
             - name: LB_LOGGING_FOLDER
-              value: "{{ .Values.app.loggingFolder }}"
+              value: "{{ .Values.app.loggingFolder | default "/var/log/librebooking" }}"
             - name: LB_LOGGING_LEVEL
-              value: "{{ .Values.app.loggingLevel }}"
+              value: "{{ .Values.app.loggingLevel | default "INFO" }}"
             - name: LB_LOGGING_SQL
-              value: "{{ .Values.app.loggingSql }}"
+              value: "{{ .Values.app.loggingSql | default "false" }}"
             {{- if .Values.app.appPath }}
             - name: APP_PATH
               value: "{{ .Values.app.appPath }}"
@@ -93,7 +63,7 @@ spec:
                   name: {{ .Values.app.existingSecretName | default (printf "%s-install" (include "librebooking.fullname" .)) }}
                   key: {{ .Values.app.existingSecretKey | default "LB_INSTALL_PASSWORD" }}
 
-            # Database configuration using documented LB_* names
+            # Database configuration
             {{- if .Values.externalDatabase.enabled }}
             - name: LB_DATABASE_HOSTSPEC
               value: "{{ .Values.externalDatabase.hostspec }}"
@@ -124,7 +94,39 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
 
+          livenessProbe:
+            httpGet:
+              path: {{ if .Values.app.appPath }}{{ printf "%s/" .Values.app.appPath }}{{ else }}/{{ end }}
+              port: http
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds | default 30 }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds | default 15 }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold | default 6 }}
+
+          readinessProbe:
+            httpGet:
+              path: {{ if .Values.app.appPath }}{{ printf "%s/" .Values.app.appPath }}{{ else }}/{{ end }}
+              port: http
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds | default 20 }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds | default 10 }}
+
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+
           volumeMounts:
+            # Mount read-only config files from external ConfigMaps/Secrets
+            {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName }}
+            - name: booking-config
+              mountPath: /config/config.php
+              subPath: config.php
+              readOnly: true
+            {{- end }}
+            {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+            - name: ldap-config
+              mountPath: /config/ldap.config.php
+              subPath: ldap.config.php
+              readOnly: true
+            {{- end }}
+
             {{- if .Values.persistence.logs.enabled }}
             - name: logs
               mountPath: "{{ .Values.persistence.logs.mountPath }}"
@@ -141,28 +143,49 @@ spec:
             - name: favicon
               mountPath: "{{ .Values.favicon.path }}"
               subPath: "favicon.ico"
+              readOnly: true
             {{- end }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
 
-          livenessProbe:
-            httpGet:
-              path: {{ if .Values.app.appPath }}{{ printf "%s/" .Values.app.appPath }}{{ else }}/{{ end }}
-              port: http
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            failureThreshold: 6
-          readinessProbe:
-            httpGet:
-              path: {{ if .Values.app.appPath }}{{ printf "%s/" .Values.app.appPath }}{{ else }}/{{ end }}
-              port: http
-            initialDelaySeconds: 20
-            periodSeconds: 10
-
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
       volumes:
+        # External booking config (ConfigMap or Secret), mounted as /config/config.php
+        {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName }}
+        - name: booking-config
+          {{- if .Values.config.bookingSecretName }}
+          secret:
+            secretName: {{ .Values.config.bookingSecretName }}
+            items:
+              - key: config.php
+                path: config.php
+          {{- else }}
+          configMap:
+            name: {{ .Values.config.bookingConfigMapName }}
+            items:
+              - key: config.php
+                path: config.php
+          {{- end }}
+        {{- end }}
+
+        # External LDAP config (ConfigMap or Secret), mounted as /config/ldap.config.php
+        {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+        - name: ldap-config
+          {{- if .Values.config.ldapSecretName }}
+          secret:
+            secretName: {{ .Values.config.ldapSecretName }}
+            items:
+              - key: ldap.config.php
+                path: ldap.config.php
+          {{- else }}
+          configMap:
+            name: {{ .Values.config.ldapConfigMapName }}
+            items:
+              - key: ldap.config.php
+                path: ldap.config.php
+          {{- end }}
+        {{- end }}
+
         {{- if .Values.persistence.logs.enabled }}
         - name: logs
           {{- if .Values.persistence.logs.existingClaim }}
