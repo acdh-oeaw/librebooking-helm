@@ -96,10 +96,10 @@ spec:
 
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
-            {{- end }}
+            {{ end }}
 
-          {{- $l := default (dict) .Values.livenessProbe -}}
-          {{- $r := default (dict) .Values.readinessProbe -}}
+          {{ $l := default (dict) .Values.livenessProbe }}
+          {{ $r := default (dict) .Values.readinessProbe }}
 
           livenessProbe:
             httpGet:
