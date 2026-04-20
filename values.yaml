@@ -1,6 +1,6 @@
 image:
-  repository: ghcr.io/librebooking/librebooking
-  tag: "latest"
+  repository: librebooking/librebooking
+  tag: "4.3.0"
   pullPolicy: IfNotPresent
 
 nameOverride: ""
