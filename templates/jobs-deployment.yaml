@@ -35,15 +35,13 @@ spec:
             - name: APP_PATH
               value: "{{ .Values.app.appPath }}"
             {{- end }}
+
             - name: LB_INSTALL_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{- if .Values.app.existingSecretName -}}
-                    {{ .Values.app.existingSecretName }}
-                  {{- else -}}
-                    {{ include "librebooking.fullname" . }}-install
-                  {{- end }}
+                  name: {{ .Values.app.existingSecretName | default (printf "%s-install" (include "librebooking.fullname" .)) }}
                   key: {{ .Values.app.existingSecretKey | default "LB_INSTALL_PASSWORD" }}
+
             {{- if .Values.externalDatabase.enabled }}
             - name: LB_DATABASE_HOSTSPEC
               value: "{{ .Values.externalDatabase.hostspec }}"
@@ -54,11 +52,7 @@ spec:
             - name: LB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{- if .Values.externalDatabase.existingSecretName -}}
-                    {{ .Values.externalDatabase.existingSecretName }}
-                  {{- else -}}
-                    {{ include "librebooking.fullname" . }}-db
-                  {{- end }}
+                  name: {{ .Values.externalDatabase.existingSecretName | default (printf "%s-db" (include "librebooking.fullname" .)) }}
                   key: {{ .Values.externalDatabase.existingSecretKey | default "db-password" }}
             {{- else if .Values.mariadb.enabled }}
             - name: LB_DATABASE_HOSTSPEC
@@ -70,9 +64,10 @@ spec:
             - name: LB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "librebooking.fullname" . }}-mariadb
+                  name: {{ .Values.mariadb.auth.existingSecretName | default (printf "%s-mariadb" (include "librebooking.fullname" .)) }}
                   key: mysql-password
             {{- end }}
+
           volumeMounts:
             {{- if .Values.persistence.logs.enabled }}
             - name: logs
