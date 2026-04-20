@@ -20,6 +20,47 @@ spec:
     spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+
+      # Init container to set correct permissions on mounted volumes
+      initContainers:
+        - name: fix-permissions
+          image: alpine:3.19
+          securityContext:
+            runAsUser: 0
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              {{- if .Values.persistence.logs.enabled }}
+              mkdir -p "{{ .Values.persistence.logs.mountPath }}"
+              chown -R 33:33 "{{ .Values.persistence.logs.mountPath }}" || true
+              chmod -R g+rwX "{{ .Values.persistence.logs.mountPath }}" || true
+              {{- end }}
+              {{- if .Values.persistence.uploadsImages.enabled }}
+              mkdir -p "{{ .Values.persistence.uploadsImages.mountPath }}"
+              chown -R 33:33 "{{ .Values.persistence.uploadsImages.mountPath }}" || true
+              chmod -R g+rwX "{{ .Values.persistence.uploadsImages.mountPath }}" || true
+              {{- end }}
+              {{- if .Values.persistence.uploadsReservation.enabled }}
+              mkdir -p "{{ .Values.persistence.uploadsReservation.mountPath }}"
+              chown -R 33:33 "{{ .Values.persistence.uploadsReservation.mountPath }}" || true
+              chmod -R g+rwX "{{ .Values.persistence.uploadsReservation.mountPath }}" || true
+              {{- end }}
+          volumeMounts:
+            {{- if .Values.persistence.logs.enabled }}
+            - name: logs
+              mountPath: "{{ .Values.persistence.logs.mountPath }}"
+            {{- end }}
+            {{- if .Values.persistence.uploadsImages.enabled }}
+            - name: uploads-images
+              mountPath: "{{ .Values.persistence.uploadsImages.mountPath }}"
+            {{- end }}
+            {{- if .Values.persistence.uploadsReservation.enabled }}
+            - name: uploads-reservation
+              mountPath: "{{ .Values.persistence.uploadsReservation.mountPath }}"
+            {{- end }}
+
       containers:
         - name: librebooking
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
