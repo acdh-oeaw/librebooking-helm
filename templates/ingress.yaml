@@ -7,12 +7,10 @@ metadata:
     {{- include "librebooking.labels" . | nindent 4 }}
   annotations:
     kubernetes.io/ingress.class: {{ .Values.ingress.className | default "nginx" | quote }}
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      proxy_set_header Host $host;
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_set_header X-Forwarded-Port $server_port;
-      proxy_redirect ~^http://(.+):8080(/.*)$ http://$1$2;
-      proxy_redirect ~^https://(.+):8080(/.*)$ https://$1$2;
+    nginx.ingress.kubernetes.io/proxy-redirect-from: "http://$host:8080"
+    nginx.ingress.kubernetes.io/proxy-redirect-to: "http://$host"
+    nginx.ingress.kubernetes.io/proxy-redirect-from-https: "https://$host:8080"
+    nginx.ingress.kubernetes.io/proxy-redirect-to-https: "https://$host"
     {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -33,7 +31,7 @@ spec:
               service:
                 name: {{ include "librebooking.fullname" $ }}
                 port:
-                  number: {{ $.Values.service.port }}
+                  number: {{ $.Values.service.port | default 8080 }}
           {{- end }}
     {{- end }}
 {{- end }}
