@@ -37,7 +37,6 @@ spec:
               set -e
               # Ensure /config directory exists with proper permissions
               mkdir -p /config
-              chmod 755 /config
               
               # Copy booking config if available, otherwise create empty file
               if [ -f /source/booking/config.php ]; then
@@ -45,7 +44,6 @@ spec:
               else
                 touch /config/config.php
               fi
-              chmod 644 /config/config.php
               
               # Copy LDAP config if available, otherwise create empty file
               if [ -f /source/ldap/ldap.config.php ]; then
@@ -53,7 +51,11 @@ spec:
               else
                 touch /config/ldap.config.php
               fi
-              chmod 644 /config/ldap.config.php
+              
+              # Set ownership to www-data (UID 33) and permissions so sed -i can create temp files
+              chown -R 33:33 /config
+              chmod 775 /config
+              chmod 644 /config/*.php
               
               # List final state for verification
               ls -la /config/
