@@ -64,7 +64,7 @@ persistence:
     existingClaim: ""
     storageClass: ""
     accessModes:
-      - ReadWriteOnce
+      - ReadWriteMany
     size: 1Gi
     mountPath: "/var/log/librebooking"
   # Persist uploads/images
@@ -73,7 +73,7 @@ persistence:
     existingClaim: ""
     storageClass: ""
     accessModes:
-      - ReadWriteOnce
+      - ReadWriteMany
     size: 2Gi
     mountPath: "/var/www/html/Web/uploads/images"
   # Persist uploads/reservation
@@ -82,7 +82,7 @@ persistence:
     existingClaim: ""
     storageClass: ""
     accessModes:
-      - ReadWriteOnce
+      - ReadWriteMany
     size: 2Gi
     mountPath: "/var/www/html/Web/uploads/reservation"
 
@@ -136,8 +136,8 @@ jobs:
   replicaCount: 1
   # Use the same image by default
   image:
-    repository: ghcr.io/librebooking/librebooking
-    tag: "latest"
+    repository: librebooking/librebooking
+    tag: "4.3.0"
     pullPolicy: IfNotPresent
   # If your jobs require different resources:
   resources: {}
