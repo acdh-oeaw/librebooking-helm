@@ -21,7 +21,7 @@ jobs:
       - name: Setup Helm
         uses: azure/setup-helm@v5
         with:
-          version: v5.0.0
+          version: v3.14.4
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
