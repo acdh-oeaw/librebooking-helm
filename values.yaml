@@ -110,7 +110,7 @@ mariadb:
   enabled: true
   image:
     repository: mariadb
-    tag: "11.4"
+    tag: "12.2"
     pullPolicy: IfNotPresent
   auth:
     rootPassword: ""            # Set this securely for setup flow

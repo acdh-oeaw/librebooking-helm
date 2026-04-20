@@ -33,30 +33,33 @@ spec:
             - name: MYSQL_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ if .Values.mariadb.auth.existingSecretName }}{{ .Values.mariadb.auth.existingSecretName }}{{ else }}{{ include "librebooking.fullname" . }}-mariadb{{ end }}
+                  name: {{ .Values.mariadb.auth.existingSecretName | default (printf "%s-mariadb" (include "librebooking.fullname" .)) }}
                   key: mysql-password
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ if .Values.mariadb.auth.existingSecretName }}{{ .Values.mariadb.auth.existingSecretName }}{{ else }}{{ include "librebooking.fullname" . }}-mariadb{{ end }}
+                  name: {{ .Values.mariadb.auth.existingSecretName | default (printf "%s-mariadb" (include "librebooking.fullname" .)) }}
                   key: mysql-root-password
           volumeMounts:
             - name: data
               mountPath: /var/lib/mysql
+
+          # Use TCP socket probes to avoid dependency on mysqladmin/mariadb-admin
           readinessProbe:
-            exec:
-              command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD"]
+            tcpSocket:
+              port: mysql
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6
           livenessProbe:
-            exec:
-              command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD"]
+            tcpSocket:
+              port: mysql
             initialDelaySeconds: 30
             periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 6
+
           resources:
             {{- toYaml .Values.mariadb.primary.resources | nindent 12 }}
       nodeSelector:
@@ -69,7 +72,7 @@ spec:
     - metadata:
         name: data
       spec:
-        accessModes: ["ReadWriteMany"]
+        accessModes: ["ReadWriteOnce"]
         resources:
           requests:
             storage: {{ .Values.mariadb.primary.persistence.size }}
