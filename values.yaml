@@ -158,5 +158,7 @@ extraVolumeMounts: []
 
 config:
   bookingConfigMapName: librebooking-booking-config   # key: config.php
-  ldapConfigMapName: librebooking-ldap-config         # key: ldap.config.php
+  bookingSecretName: ""                               # Alternative to configMap
+  ldapConfigMapName: ""                               # key: ldap.config.php (optional)
+  ldapSecretName: ""                                  # Alternative to configMap
   reloadToken: "v1"
