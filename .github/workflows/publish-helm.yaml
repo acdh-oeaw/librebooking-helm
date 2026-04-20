@@ -30,8 +30,8 @@ jobs:
         run: |
           rm -rf site
           mkdir -p site
-          helm lint librebooking
-          helm package librebooking --destination site
+          helm lint .
+          helm package . --destination site
           helm repo index site --url https://acdh-oeaw.github.io/librebooking-helm/
 
       - name: Generate index.html
