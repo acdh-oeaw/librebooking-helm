@@ -35,7 +35,7 @@ spec:
       containers:
         - name: librebooking
           image: "{{ .Values.image.repository }}:{{ default "latest" .Values.image.tag }}"
-          imagePullPolicy: {{ default "IfNotPresent" .Values.image.pullPolicy }}
+          imagePullPolicy: {{ default "IfNotPresent" .Values.image.pullPolicy | quote }}
 
           {{- with .Values.securityContext }}
           securityContext:
@@ -50,49 +50,49 @@ spec:
           env:
             # App-specific settings
             - name: LB_DEFAULT_TIMEZONE
-              value: "{{ default "UTC" (.Values.app.defaultTimezone) }}"
+              value: {{ default "UTC" .Values.app.defaultTimezone | quote }}
             - name: LB_LOGGING_FOLDER
-              value: "{{ default "/var/log/librebooking" (.Values.app.loggingFolder) }}"
+              value: {{ default "/var/log/librebooking" .Values.app.loggingFolder | quote }}
             - name: LB_LOGGING_LEVEL
-              value: "{{ default "INFO" (.Values.app.loggingLevel) }}"
+              value: {{ default "INFO" .Values.app.loggingLevel | quote }}
             - name: LB_LOGGING_SQL
-              value: "{{ default "false" (.Values.app.loggingSql) }}"
+              value: {{ default "false" .Values.app.loggingSql | quote }}
             {{- if .Values.app.appPath }}
             - name: APP_PATH
-              value: "{{ .Values.app.appPath }}"
+              value: {{ .Values.app.appPath | quote }}
             {{- end }}
 
             # Installer password (from Secret)
             - name: LB_INSTALL_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (printf "%s-install" (include "librebooking.fullname" .)) .Values.app.existingSecretName }}
-                  key: {{ default "LB_INSTALL_PASSWORD" .Values.app.existingSecretKey }}
+                  name: {{ default (printf "%s-install" (include "librebooking.fullname" .)) .Values.app.existingSecretName | quote }}
+                  key: {{ default "LB_INSTALL_PASSWORD" .Values.app.existingSecretKey | quote }}
 
             # Database configuration
             {{- if .Values.externalDatabase.enabled }}
             - name: LB_DATABASE_HOSTSPEC
-              value: "{{ .Values.externalDatabase.hostspec }}"
+              value: {{ .Values.externalDatabase.hostspec | quote }}
             - name: LB_DATABASE_NAME
-              value: "{{ .Values.externalDatabase.name }}"
+              value: {{ .Values.externalDatabase.name | quote }}
             - name: LB_DATABASE_USER
-              value: "{{ .Values.externalDatabase.user }}"
+              value: {{ .Values.externalDatabase.user | quote }}
             - name: LB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (printf "%s-db" (include "librebooking.fullname" .)) .Values.externalDatabase.existingSecretName }}
-                  key: {{ default "db-password" .Values.externalDatabase.existingSecretKey }}
+                  name: {{ default (printf "%s-db" (include "librebooking.fullname" .)) .Values.externalDatabase.existingSecretName | quote }}
+                  key: {{ default "db-password" .Values.externalDatabase.existingSecretKey | quote }}
             {{- else if .Values.mariadb.enabled }}
             - name: LB_DATABASE_HOSTSPEC
               value: {{ printf "%s-mariadb" (include "librebooking.fullname" .) | quote }}
             - name: LB_DATABASE_NAME
-              value: "{{ .Values.mariadb.auth.database }}"
+              value: {{ .Values.mariadb.auth.database | quote }}
             - name: LB_DATABASE_USER
-              value: "{{ .Values.mariadb.auth.username }}"
+              value: {{ .Values.mariadb.auth.username | quote }}
             - name: LB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (printf "%s-mariadb" (include "librebooking.fullname" .)) .Values.mariadb.auth.existingSecretName }}
+                  name: {{ default (printf "%s-mariadb" (include "librebooking.fullname" .)) .Values.mariadb.auth.existingSecretName | quote }}
                   key: mysql-password
             {{- end }}
 
@@ -146,21 +146,21 @@ spec:
 
             {{- if $logs.enabled }}
             - name: logs
-              mountPath: "{{ $logs.mountPath }}"
+              mountPath: {{ $logs.mountPath | quote }}
             {{- end }}
             {{- if $images.enabled }}
             - name: uploads-images
-              mountPath: "{{ $images.mountPath }}"
+              mountPath: {{ $images.mountPath | quote }}
             {{- end }}
             {{- if $res.enabled }}
             - name: uploads-reservation
-              mountPath: "{{ $res.mountPath }}"
+              mountPath: {{ $res.mountPath | quote }}
             {{- end }}
 
             {{- $fav := default (dict) .Values.favicon -}}
             {{- if $fav.enabled }}
             - name: favicon
-              mountPath: "{{ $fav.path }}"
+              mountPath: {{ $fav.path | quote }}
               subPath: "favicon.ico"
               readOnly: true
             {{- end }}
@@ -175,13 +175,13 @@ spec:
         - name: booking-config
           {{- if .Values.config.bookingSecretName }}
           secret:
-            secretName: {{ .Values.config.bookingSecretName }}
+            secretName: {{ .Values.config.bookingSecretName | quote }}
             items:
               - key: config.php
                 path: config.php
           {{- else }}
           configMap:
-            name: {{ .Values.config.bookingConfigMapName }}
+            name: {{ .Values.config.bookingConfigMapName | quote }}
             items:
               - key: config.php
                 path: config.php
@@ -193,13 +193,13 @@ spec:
         - name: ldap-config
           {{- if .Values.config.ldapSecretName }}
           secret:
-            secretName: {{ .Values.config.ldapSecretName }}
+            secretName: {{ .Values.config.ldapSecretName | quote }}
             items:
               - key: ldap.config.php
                 path: ldap.config.php
           {{- else }}
           configMap:
-            name: {{ .Values.config.ldapConfigMapName }}
+            name: {{ .Values.config.ldapConfigMapName | quote }}
             items:
               - key: ldap.config.php
                 path: ldap.config.php
@@ -215,7 +215,7 @@ spec:
         - name: logs
           {{- if $logs.existingClaim }}
           persistentVolumeClaim:
-            claimName: {{ $logs.existingClaim }}
+            claimName: {{ $logs.existingClaim | quote }}
           {{- else }}
           persistentVolumeClaim:
             claimName: {{ include "librebooking.fullname" . }}-logs
@@ -226,7 +226,7 @@ spec:
         - name: uploads-images
           {{- if $images.existingClaim }}
           persistentVolumeClaim:
-            claimName: {{ $images.existingClaim }}
+            claimName: {{ $images.existingClaim | quote }}
           {{- else }}
           persistentVolumeClaim:
             claimName: {{ include "librebooking.fullname" . }}-uploads-images
@@ -237,7 +237,7 @@ spec:
         - name: uploads-reservation
           {{- if $res.existingClaim }}
           persistentVolumeClaim:
-            claimName: {{ $res.existingClaim }}
+            claimName: {{ $res.existingClaim | quote }}
           {{- else }}
           persistentVolumeClaim:
             claimName: {{ include "librebooking.fullname" . }}-uploads-reservation
@@ -249,10 +249,10 @@ spec:
         - name: favicon
           {{- if eq (default "configmap" $fav.type) "secret" }}
           secret:
-            secretName: {{ $fav.name }}
+            secretName: {{ $fav.name | quote }}
           {{- else }}
           configMap:
-            name: {{ $fav.name }}
+            name: {{ $fav.name | quote }}
           {{- end }}
         {{- end }}
 
