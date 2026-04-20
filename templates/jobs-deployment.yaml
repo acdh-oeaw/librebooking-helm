@@ -56,7 +56,7 @@ spec:
                   key: {{ .Values.externalDatabase.existingSecretKey | default "db-password" }}
             {{- else if .Values.mariadb.enabled }}
             - name: LB_DATABASE_HOSTSPEC
-              value: {{ printf "%s-mariadb:%d" (include "librebooking.fullname" .) (int .Values.mariadb.primary.service.port) | quote }}
+              value: {{ printf "%s-mariadb" (include "librebooking.fullname" .) | quote }}
             - name: LB_DATABASE_NAME
               value: "{{ .Values.mariadb.auth.database }}"
             - name: LB_DATABASE_USER
