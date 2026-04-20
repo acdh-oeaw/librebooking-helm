@@ -157,18 +157,6 @@ extraVolumes: []
 extraVolumeMounts: []
 
 config:
-  bookingConfigMapName: librebooking-booking-config
-  ldapConfigMapName: librebooking-ldap-config
-  # If you use Secrets instead of ConfigMaps:
-  # bookingSecretName: librebooking-booking-secret
-  # ldapSecretName: librebooking-ldap-secret
-# values.yaml
-config:
+  bookingConfigMapName: librebooking-booking-config   # key: config.php
+  ldapConfigMapName: librebooking-ldap-config         # key: ldap.config.php
   reloadToken: "v1"
-
-# templates/deployment.yaml
-spec:
-  template:
-    metadata:
-      annotations:
-        config/reload-token: {{ .Values.config.reloadToken | quote }}
