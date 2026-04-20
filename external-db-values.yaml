@@ -1,0 +1,33 @@
+mariadb:
+  enabled: false
+
+externalDatabase:
+  enabled: true
+  hostspec: "my-db.example.com:3306"
+  name: "librebooking"
+  user: "librebooking"
+  password: "CHANGE_ME"
+  # Or use an existing secret:
+  # existingSecretName: my-db-secret
+  # existingSecretKey: db-password
+
+app:
+  defaultTimezone: "UTC"
+  # Provide install password via secret or inline for quick start
+  installPassword: "CHANGE_ME"
+  # Or use a pre-created secret:
+  # existingSecretName: librebooking-app-secret
+  # existingSecretKey: LB_INSTALL_PASSWORD
+
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+    - host: librebooking.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: librebooking-tls
+      hosts:
+        - librebooking.example.com

@@ -1,0 +1,36 @@
+Thank you for installing LibreBooking.
+
+1) Access the application:
+   {{- if .Values.ingress.enabled }}
+   - Ingress Host(s):{{ range .Values.ingress.hosts }} {{ .host }}{{ end }}
+     Path: {{- if .Values.app.appPath }} {{ .Values.app.appPath }} {{- else }} / {{- end }}
+   {{- else }}
+   - kubectl port-forward svc/{{ include "librebooking.fullname" . }} 8080:{{ .Values.service.port }}
+     http://127.0.0.1:8080{{ if .Values.app.appPath }}{{ .Values.app.appPath }}{{ end }}/
+   {{- end }}
+
+2) First-time setup (per SETUP.md):
+   - Open {{ if .Values.ingress.enabled }}https://{{ (index .Values.ingress.hosts 0).host }}{{ else }}http://127.0.0.1:8080{{ end }}{{ if .Values.app.appPath }}{{ .Values.app.appPath }}{{ end }}/install
+   - Enter LB_INSTALL_PASSWORD (from Secret).
+   - DB root user: root
+   - DB root password: {{- if .Values.mariadb.enabled }} from Secret {{ include "librebooking.fullname" . }}-mariadb key mysql-root-password {{- else }} your external DB root password {{- end }}
+   - Choose Create database and Create database user as needed.
+
+3) Database:
+   {{- if .Values.externalDatabase.enabled }}
+   - Using external DB at {{ .Values.externalDatabase.hostspec }}
+   - DB: {{ .Values.externalDatabase.name }} User: {{ .Values.externalDatabase.user }}
+   {{- else if .Values.mariadb.enabled }}
+   - Internal MariaDB (official image).
+   - Hostspec: {{ include "librebooking.fullname" . }}-mariadb:{{ .Values.mariadb.primary.service.port }}
+   - DB: {{ .Values.mariadb.auth.database }} User: {{ .Values.mariadb.auth.username }}
+   {{- else }}
+   - No DB configured. Enable externalDatabase or mariadb.enabled.
+   {{- end }}
+
+4) Background jobs:
+   - If jobs.enabled=true, a separate deployment runs: supercronic /config/lb-jobs-cron
+   - Logs are written based on LB_LOGGING_LEVEL into LB_LOGGING_FOLDER.
+
+5) Persistence:
+   - Enable PVCs for logs and uploads if you want data to survive pod restarts.

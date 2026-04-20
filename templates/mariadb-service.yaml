@@ -1,0 +1,17 @@
+{{- if .Values.mariadb.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "librebooking.fullname" . }}-mariadb
+  labels:
+    {{- include "librebooking.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: mysql
+      port: {{ .Values.mariadb.primary.service.port }}
+      targetPort: 3306
+  selector:
+    app.kubernetes.io/name: {{ include "librebooking.name" . }}-mariadb
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

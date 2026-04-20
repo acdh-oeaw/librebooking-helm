@@ -1,0 +1,79 @@
+{{- if .Values.mariadb.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "librebooking.fullname" . }}-mariadb
+  labels:
+    {{- include "librebooking.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "librebooking.fullname" . }}-mariadb
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "librebooking.name" . }}-mariadb
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "librebooking.name" . }}-mariadb
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: mariadb
+          image: "{{ .Values.mariadb.image.repository }}:{{ .Values.mariadb.image.tag }}"
+          imagePullPolicy: {{ .Values.mariadb.image.pullPolicy }}
+          ports:
+            - name: mysql
+              containerPort: 3306
+          env:
+            - name: MYSQL_DATABASE
+              value: "{{ .Values.mariadb.auth.database }}"
+            - name: MYSQL_USER
+              value: "{{ .Values.mariadb.auth.username }}"
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.mariadb.auth.existingSecretName }}{{ .Values.mariadb.auth.existingSecretName }}{{ else }}{{ include "librebooking.fullname" . }}-mariadb{{ end }}
+                  key: mysql-password
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ if .Values.mariadb.auth.existingSecretName }}{{ .Values.mariadb.auth.existingSecretName }}{{ else }}{{ include "librebooking.fullname" . }}-mariadb{{ end }}
+                  key: mysql-root-password
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD"]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.mariadb.primary.resources | nindent 12 }}
+      nodeSelector:
+        {{- toYaml .Values.mariadb.primary.nodeSelector | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.mariadb.primary.tolerations | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.mariadb.primary.affinity | nindent 8 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteMany"]
+        resources:
+          requests:
+            storage: {{ .Values.mariadb.primary.persistence.size }}
+        {{- if .Values.mariadb.primary.persistence.storageClass }}
+        storageClassName: {{ .Values.mariadb.primary.persistence.storageClass }}
+        {{- end }}
+{{- end }}

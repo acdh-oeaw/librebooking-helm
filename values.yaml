@@ -1,0 +1,154 @@
+image:
+  repository: ghcr.io/librebooking/librebooking
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: librebooking.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources: {}
+#  limits:
+#    cpu: 500m
+#    memory: 512Mi
+#  requests:
+#    cpu: 100m
+#    memory: 256Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+
+# Application env per RUN.md
+app:
+  # Required (provide via secret or inline for install only)
+  defaultTimezone: "UTC"              # LB_DEFAULT_TIMEZONE
+  installPassword: ""                 # Used to create a Secret if existingSecretName is empty
+  existingSecretName: ""              # Secret containing LB_INSTALL_PASSWORD
+  existingSecretKey: "LB_INSTALL_PASSWORD"
+
+  # Logging
+  loggingFolder: "/var/log/librebooking"  # LB_LOGGING_FOLDER
+  loggingLevel: "none"                    # LB_LOGGING_LEVEL (none|debug|info|warn|error)
+  loggingSql: "false"                     # LB_LOGGING_SQL ("true"/"false")
+
+  # Optional
+  appPath: ""                             # APP_PATH (e.g., /librebooking)
+
+# Persistence (Kubernetes PVCs instead of bind mounts)
+persistence:
+  # Persist logs (LB_LOGGING_FOLDER)
+  logs:
+    enabled: false
+    existingClaim: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+    mountPath: "/var/log/librebooking"
+  # Persist uploads/images
+  uploadsImages:
+    enabled: false
+    existingClaim: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 2Gi
+    mountPath: "/var/www/html/Web/uploads/images"
+  # Persist uploads/reservation
+  uploadsReservation:
+    enabled: false
+    existingClaim: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 2Gi
+    mountPath: "/var/www/html/Web/uploads/reservation"
+
+# Optional favicon override (mount a single file at Web/favicon.ico)
+favicon:
+  enabled: false
+  # One of: "secret" or "configMap"
+  type: "secret"
+  name: ""          # Name of Secret/ConfigMap
+  key: "favicon.ico"  # Key containing the icon data
+  path: "/var/www/html/Web/favicon.ico"
+
+# External DB; disable internal MariaDB when enabled
+externalDatabase:
+  enabled: false
+  hostspec: ""                  # LB_DATABASE_HOSTSPEC (hostname or host:port)
+  name: "librebooking"          # LB_DATABASE_NAME
+  user: "librebooking"          # LB_DATABASE_USER
+  password: ""                  # LB_DATABASE_PASSWORD (or via existingSecretName)
+  existingSecretName: ""
+  existingSecretKey: "db-password"
+
+# Internal MariaDB (official image)
+mariadb:
+  enabled: true
+  image:
+    repository: mariadb
+    tag: "11.4"
+    pullPolicy: IfNotPresent
+  auth:
+    rootPassword: ""            # Set this securely for setup flow
+    database: librebooking
+    username: librebooking
+    password: librebooking
+    existingSecretName: ""      # If set, should contain keys: mysql-root-password, mysql-password
+  primary:
+    service:
+      port: 3306
+    persistence:
+      enabled: true
+      size: 8Gi
+      storageClass: ""
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+# Optional background jobs as a separate Deployment using supercronic
+jobs:
+  enabled: false
+  replicaCount: 1
+  # Use the same image by default
+  image:
+    repository: ghcr.io/librebooking/librebooking
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  # If your jobs require different resources:
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Additional env/volumes if needed
+extraEnv: []
+# - name: PHP_MEMORY_LIMIT
+#   value: "256M"
+
+extraVolumes: []
+extraVolumeMounts: []

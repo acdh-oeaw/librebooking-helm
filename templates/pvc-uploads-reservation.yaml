@@ -1,0 +1,17 @@
+{{- if and .Values.persistence.uploadsReservation.enabled (not .Values.persistence.uploadsReservation.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "librebooking.fullname" . }}-uploads-reservation
+  labels:
+    {{- include "librebooking.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.persistence.uploadsReservation.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.uploadsReservation.size }}
+  {{- if .Values.persistence.uploadsReservation.storageClass }}
+  storageClassName: {{ .Values.persistence.uploadsReservation.storageClass }}
+  {{- end }}
+{{- end }}

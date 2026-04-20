@@ -1,0 +1,134 @@
+{{- if .Values.jobs.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "librebooking.fullname" . }}-jobs
+  labels:
+    {{- include "librebooking.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.jobs.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "librebooking.name" . }}-jobs
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "librebooking.name" . }}-jobs
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: librebooking-jobs
+          image: "{{ .Values.jobs.image.repository }}:{{ .Values.jobs.image.tag }}"
+          imagePullPolicy: {{ .Values.jobs.image.pullPolicy }}
+          command: ["supercronic", "/config/lb-jobs-cron"]
+          env:
+            - name: LB_DEFAULT_TIMEZONE
+              value: "{{ .Values.app.defaultTimezone }}"
+            - name: LB_LOGGING_FOLDER
+              value: "{{ .Values.app.loggingFolder }}"
+            - name: LB_LOGGING_LEVEL
+              value: "{{ .Values.app.loggingLevel }}"
+            - name: LB_LOGGING_SQL
+              value: "{{ .Values.app.loggingSql }}"
+            {{- if .Values.app.appPath }}
+            - name: APP_PATH
+              value: "{{ .Values.app.appPath }}"
+            {{- end }}
+            - name: LB_INSTALL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{- if .Values.app.existingSecretName -}}
+                    {{ .Values.app.existingSecretName }}
+                  {{- else -}}
+                    {{ include "librebooking.fullname" . }}-install
+                  {{- end }}
+                  key: {{ .Values.app.existingSecretKey | default "LB_INSTALL_PASSWORD" }}
+            {{- if .Values.externalDatabase.enabled }}
+            - name: LB_DATABASE_HOSTSPEC
+              value: "{{ .Values.externalDatabase.hostspec }}"
+            - name: LB_DATABASE_NAME
+              value: "{{ .Values.externalDatabase.name }}"
+            - name: LB_DATABASE_USER
+              value: "{{ .Values.externalDatabase.user }}"
+            - name: LB_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{- if .Values.externalDatabase.existingSecretName -}}
+                    {{ .Values.externalDatabase.existingSecretName }}
+                  {{- else -}}
+                    {{ include "librebooking.fullname" . }}-db
+                  {{- end }}
+                  key: {{ .Values.externalDatabase.existingSecretKey | default "db-password" }}
+            {{- else if .Values.mariadb.enabled }}
+            - name: LB_DATABASE_HOSTSPEC
+              value: {{ printf "%s-mariadb:%d" (include "librebooking.fullname" .) (int .Values.mariadb.primary.service.port) | quote }}
+            - name: LB_DATABASE_NAME
+              value: "{{ .Values.mariadb.auth.database }}"
+            - name: LB_DATABASE_USER
+              value: "{{ .Values.mariadb.auth.username }}"
+            - name: LB_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "librebooking.fullname" . }}-mariadb
+                  key: mysql-password
+            {{- end }}
+          volumeMounts:
+            {{- if .Values.persistence.logs.enabled }}
+            - name: logs
+              mountPath: "{{ .Values.persistence.logs.mountPath }}"
+            {{- end }}
+            {{- if .Values.persistence.uploadsImages.enabled }}
+            - name: uploads-images
+              mountPath: "{{ .Values.persistence.uploadsImages.mountPath }}"
+            {{- end }}
+            {{- if .Values.persistence.uploadsReservation.enabled }}
+            - name: uploads-reservation
+              mountPath: "{{ .Values.persistence.uploadsReservation.mountPath }}"
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.jobs.resources | nindent 12 }}
+      volumes:
+        {{- if .Values.persistence.logs.enabled }}
+        - name: logs
+          {{- if .Values.persistence.logs.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.logs.existingClaim }}
+          {{- else }}
+          persistentVolumeClaim:
+            claimName: {{ include "librebooking.fullname" . }}-logs
+          {{- end }}
+        {{- end }}
+        {{- if .Values.persistence.uploadsImages.enabled }}
+        - name: uploads-images
+          {{- if .Values.persistence.uploadsImages.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.uploadsImages.existingClaim }}
+          {{- else }}
+          persistentVolumeClaim:
+            claimName: {{ include "librebooking.fullname" . }}-uploads-images
+          {{- end }}
+        {{- end }}
+        {{- if .Values.persistence.uploadsReservation.enabled }}
+        - name: uploads-reservation
+          {{- if .Values.persistence.uploadsReservation.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.uploadsReservation.existingClaim }}
+          {{- else }}
+          persistentVolumeClaim:
+            claimName: {{ include "librebooking.fullname" . }}-uploads-reservation
+          {{- end }}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      nodeSelector:
+        {{- toYaml .Values.jobs.nodeSelector | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.jobs.tolerations | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.jobs.affinity | nindent 8 }}
+{{- end }}
