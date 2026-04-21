@@ -7,20 +7,12 @@ metadata:
     {{- include "librebooking.labels" . | nindent 4 }}
   annotations:
     kubernetes.io/ingress.class: {{ .Values.ingress.className | default "nginx" | quote }}
-    # Fix URL generation behind proxy - ensure correct headers are passed to backend
+    # Fix URL generation behind proxy - remove :8080 from Location header redirects
     nginx.ingress.kubernetes.io/proxy-redirect-from: "http://$host:8080"
     nginx.ingress.kubernetes.io/proxy-redirect-to: "http://$host"
     nginx.ingress.kubernetes.io/proxy-redirect-from-https: "https://$host:8080"
     nginx.ingress.kubernetes.io/proxy-redirect-to-https: "https://$host"
-    # Ensure proper X-Forwarded headers for correct URL generation in application
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_set_header X-Forwarded-Host $server_name;
-      proxy_set_header X-Forwarded-Port $server_port;
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header X-Real-IP $remote_addr;
-      proxy_set_header Host $server_name;
-    # Ensure SERVER_PORT is correct (443 for HTTPS, not internal 8080)
+    # Use X-Forwarded-* headers for correct URL generation
     nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
     {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
