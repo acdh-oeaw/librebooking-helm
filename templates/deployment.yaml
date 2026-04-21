@@ -92,27 +92,7 @@ spec:
               find /config -type f -name "*.php" -exec chmod 644 {} \;
               find /config -type f -name "*.conf" -exec chmod 644 {} \;
 
-              {{- if .Values.config.apacheConfigMapName }}
-              # Install Apache proxy headers configuration
-              echo "Installing Apache proxy headers configuration..."
-              if [ -f /config/proxy-headers.conf ]; then
-                mkdir -p /etc/apache2/conf-enabled
-                cp /config/proxy-headers.conf /etc/apache2/conf-enabled/proxy-headers.conf
-                chmod 644 /etc/apache2/conf-enabled/proxy-headers.conf
-                echo "Apache proxy headers config installed successfully"
-              fi
-              {{- end }}
 
-              {{- if .Values.config.htaccessConfigMapName }}
-              # Install custom .htaccess file
-              echo "Installing custom .htaccess file..."
-              if [ -f /config/.htaccess ]; then
-                cp /config/.htaccess /var/www/html/.htaccess
-                chmod 644 /var/www/html/.htaccess
-                chown 33:33 /var/www/html/.htaccess
-                echo "Custom .htaccess installed successfully"
-              fi
-              {{- end }}
 
               echo "=== Final state of /config directory ==="
               ls -la /config/
