@@ -204,6 +204,7 @@ spec:
                   - /bin/sh
                   - -c
                   - |
+                    set -e
                     # Create LDAP symlink if config file exists and symlink doesn't already exist
                     {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
                     if [ -f /config/ldap.config.php ]; then
@@ -218,9 +219,24 @@ spec:
                     if [ -f /config/proxy-headers.conf ]; then
                       if ! [ -e /etc/apache2/conf-enabled/proxy-headers.conf ]; then
                         echo "Installing Apache proxy headers configuration"
+                        # Wait for Apache to be ready
+                        for i in $(seq 1 30); do
+                          if apache2ctl status > /dev/null 2>&1; then
+                            echo "Apache is ready"
+                            break
+                          fi
+                          echo "Waiting for Apache to be ready... ($i/30)"
+                          sleep 1
+                        done
+                        # Copy the config
                         cp /config/proxy-headers.conf /etc/apache2/conf-enabled/proxy-headers.conf
-                        # Reload Apache to apply new configuration
-                        apache2ctl graceful
+                        # Test the configuration
+                        if apache2ctl configtest 2>&1 | grep -q "Syntax OK"; then
+                          echo "Apache configuration is valid, reloading..."
+                          apache2ctl reload || true
+                        else
+                          echo "Warning: Apache configuration test failed, config not applied"
+                        fi
                       fi
                     fi
                     {{- end }}
