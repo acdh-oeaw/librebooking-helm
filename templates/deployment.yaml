@@ -14,6 +14,7 @@ spec:
       labels:
         {{- include "librebooking.selectorLabels" . | nindent 8 }}
       annotations:
+        # Rollout trigger for external config changes
         config/reload-token: {{ default "v1" .Values.config.reloadToken | quote }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
@@ -35,11 +36,11 @@ spec:
             - -c
             - |
               set -e
-              # Ensure /config directory exists with proper permissions
+              # Ensure /config directory exists
               mkdir -p /config
-              
+
               echo "=== Init container: checking source directories ==="
-              
+
               {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName }}
               echo "Checking /source/booking:"
               ls -la /source/booking/ || echo "Directory not found or empty"
@@ -50,7 +51,7 @@ spec:
                 echo "WARNING: /source/booking/config.php not found"
               fi
               {{- end }}
-              
+
               {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
               echo "Checking /source/ldap:"
               ls -la /source/ldap/ || echo "Directory not found or empty"
@@ -61,7 +62,7 @@ spec:
                 echo "WARNING: /source/ldap/ldap.config.php not found"
               fi
               {{- end }}
-              
+
               {{- if .Values.config.apacheConfigMapName }}
               echo "Checking /source/apache:"
               ls -la /source/apache/ || echo "Directory not found or empty"
@@ -72,7 +73,7 @@ spec:
                 echo "WARNING: /source/apache/proxy-headers.conf not found"
               fi
               {{- end }}
-              
+
               {{- if .Values.config.htaccessConfigMapName }}
               echo "Checking /source/htaccess:"
               ls -la /source/htaccess/ || echo "Directory not found or empty"
@@ -83,16 +84,16 @@ spec:
                 echo "WARNING: /source/htaccess/.htaccess not found"
               fi
               {{- end }}
-              
-              # Set ownership to www-data (UID 33) and permissions so sed -i can create temp files
+
+              # Set ownership to www-data (UID 33) and permissions
               echo "Setting permissions on /config directory and files..."
               chown -R 33:33 /config
               chmod 775 /config
               find /config -type f -name "*.php" -exec chmod 644 {} \;
               find /config -type f -name "*.conf" -exec chmod 644 {} \;
-              
+
               {{- if .Values.config.apacheConfigMapName }}
-              # Copy Apache config directly to conf-enabled (we're root in init container)
+              # Install Apache proxy headers configuration
               echo "Installing Apache proxy headers configuration..."
               if [ -f /config/proxy-headers.conf ]; then
                 mkdir -p /etc/apache2/conf-enabled
@@ -101,9 +102,9 @@ spec:
                 echo "Apache proxy headers config installed successfully"
               fi
               {{- end }}
-              
+
               {{- if .Values.config.htaccessConfigMapName }}
-              # Copy .htaccess override to document root (we're root in init container)
+              # Install custom .htaccess file
               echo "Installing custom .htaccess file..."
               if [ -f /config/.htaccess ]; then
                 cp /config/.htaccess /var/www/html/.htaccess
@@ -112,8 +113,7 @@ spec:
                 echo "Custom .htaccess installed successfully"
               fi
               {{- end }}
-              
-              # List final state for verification
+
               echo "=== Final state of /config directory ==="
               ls -la /config/
           volumeMounts:
@@ -135,6 +135,7 @@ spec:
             - name: htaccess-config
               mountPath: /source/htaccess
             {{- end }}
+      {{- end }}
 
       {{- with .Values.podSecurityContext }}
       securityContext:
@@ -171,36 +172,40 @@ spec:
             {{- end }}
 
             # Installer password (from Secret)
+            {{- $installSecretName := default (printf "%s-install" (include "librebooking.fullname" .)) .Values.app.existingSecretName -}}
+            {{- $installSecretKey  := default "LB_INSTALL_PASSWORD" .Values.app.existingSecretKey -}}
             - name: LB_INSTALL_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (printf "%s-install" (include "librebooking.fullname" .)) .Values.app.existingSecretName | quote }}
-                  key: {{ default "LB_INSTALL_PASSWORD" .Values.app.existingSecretKey | quote }}
+                  name: {{ $installSecretName | quote }}
+                  key: {{ $installSecretKey | quote }}
 
             # Database configuration
-            {{- if .Values.externalDatabase.enabled }}
+            {{- $dbExternalEnabled := dig "externalDatabase" "enabled" false .Values -}}
+            {{- $mariadbEnabled := dig "mariadb" "enabled" false .Values -}}
+            {{- if $dbExternalEnabled }}
             - name: LB_DATABASE_HOSTSPEC
-              value: {{ .Values.externalDatabase.hostspec | quote }}
+              value: {{ dig "externalDatabase" "hostspec" "" .Values | quote }}
             - name: LB_DATABASE_NAME
-              value: {{ .Values.externalDatabase.name | quote }}
+              value: {{ dig "externalDatabase" "name" "" .Values | quote }}
             - name: LB_DATABASE_USER
-              value: {{ .Values.externalDatabase.user | quote }}
+              value: {{ dig "externalDatabase" "user" "" .Values | quote }}
             - name: LB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (printf "%s-db" (include "librebooking.fullname" .)) .Values.externalDatabase.existingSecretName | quote }}
-                  key: {{ default "db-password" .Values.externalDatabase.existingSecretKey | quote }}
-            {{- else if .Values.mariadb.enabled }}
+                  name: {{ default (printf "%s-db" (include "librebooking.fullname" .)) (dig "externalDatabase" "existingSecretName" "" .Values) | quote }}
+                  key: {{ default "db-password" (dig "externalDatabase" "existingSecretKey" "" .Values) | quote }}
+            {{- else if $mariadbEnabled }}
             - name: LB_DATABASE_HOSTSPEC
               value: {{ printf "%s-mariadb" (include "librebooking.fullname" .) | quote }}
             - name: LB_DATABASE_NAME
-              value: {{ .Values.mariadb.auth.database | quote }}
+              value: {{ dig "mariadb" "auth" "database" "" .Values | quote }}
             - name: LB_DATABASE_USER
-              value: {{ .Values.mariadb.auth.username | quote }}
+              value: {{ dig "mariadb" "auth" "username" "" .Values | quote }}
             - name: LB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (printf "%s-mariadb" (include "librebooking.fullname" .)) .Values.mariadb.auth.existingSecretName | quote }}
+                  name: {{ default (printf "%s-mariadb" (include "librebooking.fullname" .)) (dig "mariadb" "auth" "existingSecretName" "" .Values) | quote }}
                   key: mysql-password
             {{- end }}
 
@@ -211,10 +216,10 @@ spec:
 
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
-            {{ end }}
+            {{- end }}
 
-          {{ $l := default (dict) .Values.livenessProbe }}
-          {{ $r := default (dict) .Values.readinessProbe }}
+          {{- $l := default (dict) .Values.livenessProbe -}}
+          {{- $r := default (dict) .Values.readinessProbe -}}
 
           livenessProbe:
             httpGet:
@@ -255,7 +260,7 @@ spec:
           {{- end }}
 
           volumeMounts:
-            {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName }}
+            {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName .Values.config.htaccessConfigMapName }}
             - name: config-copy
               mountPath: /config
             {{- end }}
@@ -291,7 +296,7 @@ spec:
             {{- end }}
 
       volumes:
-        {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+        {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName .Values.config.htaccessConfigMapName }}
         - name: config-copy
           emptyDir: {}
         {{- end }}
