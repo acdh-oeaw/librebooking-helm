@@ -80,6 +80,17 @@ spec:
               find /config -type f -name "*.php" -exec chmod 644 {} \;
               find /config -type f -name "*.conf" -exec chmod 644 {} \;
               
+              {{- if .Values.config.apacheConfigMapName }}
+              # Copy Apache config directly to conf-enabled (we're root in init container)
+              echo "Installing Apache proxy headers configuration..."
+              if [ -f /config/proxy-headers.conf ]; then
+                mkdir -p /etc/apache2/conf-enabled
+                cp /config/proxy-headers.conf /etc/apache2/conf-enabled/proxy-headers.conf
+                chmod 644 /etc/apache2/conf-enabled/proxy-headers.conf
+                echo "Apache proxy headers config installed successfully"
+              fi
+              {{- end }}
+              
               # List final state for verification
               echo "=== Final state of /config directory ==="
               ls -la /config/
@@ -196,7 +207,7 @@ spec:
             periodSeconds: {{ default 10 $r.periodSeconds }}
             failureThreshold: {{ default 3 $r.failureThreshold }}
 
-          {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName }}
+          {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
           lifecycle:
             postStart:
               exec:
@@ -204,42 +215,13 @@ spec:
                   - /bin/sh
                   - -c
                   - |
-                    set -e
                     # Create LDAP symlink if config file exists and symlink doesn't already exist
-                    {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
                     if [ -f /config/ldap.config.php ]; then
                       if ! [ -e /var/www/html/config/ldap.config.php ]; then
                         echo "Creating symlink: /var/www/html/config/ldap.config.php -> /config/ldap.config.php"
                         ln -s /config/ldap.config.php /var/www/html/config/ldap.config.php
                       fi
                     fi
-                    {{- end }}
-                    # Install Apache config if provided
-                    {{- if .Values.config.apacheConfigMapName }}
-                    if [ -f /config/proxy-headers.conf ]; then
-                      if ! [ -e /etc/apache2/conf-enabled/proxy-headers.conf ]; then
-                        echo "Installing Apache proxy headers configuration"
-                        # Wait for Apache to be ready
-                        for i in $(seq 1 30); do
-                          if apache2ctl status > /dev/null 2>&1; then
-                            echo "Apache is ready"
-                            break
-                          fi
-                          echo "Waiting for Apache to be ready... ($i/30)"
-                          sleep 1
-                        done
-                        # Copy the config
-                        cp /config/proxy-headers.conf /etc/apache2/conf-enabled/proxy-headers.conf
-                        # Test the configuration
-                        if apache2ctl configtest 2>&1 | grep -q "Syntax OK"; then
-                          echo "Apache configuration is valid, reloading..."
-                          apache2ctl reload || true
-                        else
-                          echo "Warning: Apache configuration test failed, config not applied"
-                        fi
-                      fi
-                    fi
-                    {{- end }}
           {{- end }}
 
           {{- with .Values.resources }}
