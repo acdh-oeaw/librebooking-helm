@@ -26,7 +26,7 @@ spec:
 
       serviceAccountName: {{ include "librebooking.serviceAccountName" . }}
 
-      {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+      {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName }}
       initContainers:
         - name: copy-config
           image: busybox:1.36.1
@@ -62,11 +62,23 @@ spec:
               fi
               {{- end }}
               
+              {{- if .Values.config.apacheConfigMapName }}
+              echo "Checking /source/apache:"
+              ls -la /source/apache/ || echo "Directory not found or empty"
+              if [ -f /source/apache/proxy-headers.conf ]; then
+                echo "Copying /source/apache/proxy-headers.conf to /config/proxy-headers.conf"
+                cp /source/apache/proxy-headers.conf /config/proxy-headers.conf
+              else
+                echo "WARNING: /source/apache/proxy-headers.conf not found"
+              fi
+              {{- end }}
+              
               # Set ownership to www-data (UID 33) and permissions so sed -i can create temp files
               echo "Setting permissions on /config directory and files..."
               chown -R 33:33 /config
               chmod 775 /config
               find /config -type f -name "*.php" -exec chmod 644 {} \;
+              find /config -type f -name "*.conf" -exec chmod 644 {} \;
               
               # List final state for verification
               echo "=== Final state of /config directory ==="
@@ -81,6 +93,10 @@ spec:
             {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
             - name: ldap-config
               mountPath: /source/ldap
+            {{- end }}
+            {{- if .Values.config.apacheConfigMapName }}
+            - name: apache-config
+              mountPath: /source/apache
             {{- end }}
       {{- end }}
 
@@ -180,7 +196,7 @@ spec:
             periodSeconds: {{ default 10 $r.periodSeconds }}
             failureThreshold: {{ default 3 $r.failureThreshold }}
 
-          {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+          {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName }}
           lifecycle:
             postStart:
               exec:
@@ -189,12 +205,25 @@ spec:
                   - -c
                   - |
                     # Create LDAP symlink if config file exists and symlink doesn't already exist
+                    {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
                     if [ -f /config/ldap.config.php ]; then
                       if ! [ -e /var/www/html/config/ldap.config.php ]; then
                         echo "Creating symlink: /var/www/html/config/ldap.config.php -> /config/ldap.config.php"
                         ln -s /config/ldap.config.php /var/www/html/config/ldap.config.php
                       fi
                     fi
+                    {{- end }}
+                    # Install Apache config if provided
+                    {{- if .Values.config.apacheConfigMapName }}
+                    if [ -f /config/proxy-headers.conf ]; then
+                      if ! [ -e /etc/apache2/conf-enabled/proxy-headers.conf ]; then
+                        echo "Installing Apache proxy headers configuration"
+                        cp /config/proxy-headers.conf /etc/apache2/conf-enabled/proxy-headers.conf
+                        # Reload Apache to apply new configuration
+                        apache2ctl graceful
+                      fi
+                    fi
+                    {{- end }}
           {{- end }}
 
           {{- with .Values.resources }}
@@ -203,7 +232,7 @@ spec:
           {{- end }}
 
           volumeMounts:
-            {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+            {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName }}
             - name: config-copy
               mountPath: /config
             {{- end }}
@@ -276,6 +305,15 @@ spec:
               - key: ldap.config.php
                 path: ldap.config.php
           {{- end }}
+        {{- end }}
+
+        {{- if .Values.config.apacheConfigMapName }}
+        - name: apache-config
+          configMap:
+            name: {{ .Values.config.apacheConfigMapName | quote }}
+            items:
+              - key: proxy-headers.conf
+                path: proxy-headers.conf
         {{- end }}
 
         {{- $p := default (dict) .Values.persistence -}}
