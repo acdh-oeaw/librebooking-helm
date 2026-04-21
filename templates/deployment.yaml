@@ -136,6 +136,7 @@ spec:
               mountPath: /source/htaccess
             {{- end }}
       {{- end }}
+      {{- end }}
 
       {{- with .Values.podSecurityContext }}
       securityContext:
