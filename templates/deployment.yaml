@@ -172,8 +172,8 @@ spec:
             {{- end }}
 
             # Installer password (from Secret)
-            {{- $installSecretName := default (printf "%s-install" (include "librebooking.fullname" .)) .Values.app.existingSecretName -}}
-            {{- $installSecretKey  := default "LB_INSTALL_PASSWORD" .Values.app.existingSecretKey -}}
+            {{- $installSecretName := default (printf "%s-install" (include "librebooking.fullname" .)) .Values.app.existingSecretName }}
+            {{- $installSecretKey  := default "LB_INSTALL_PASSWORD" .Values.app.existingSecretKey }}
             - name: LB_INSTALL_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -181,11 +181,11 @@ spec:
                   key: {{ $installSecretKey | quote }}
 
             # Database configuration
-            {{- $ext := default (dict) .Values.externalDatabase -}}
-            {{- $extEnabled := default false $ext.enabled -}}
-            {{- $maria := default (dict) .Values.mariadb -}}
-            {{- $mariaEnabled := default false $maria.enabled -}}
-            {{- $mariaAuth := default (dict) $maria.auth -}}
+            {{- $ext := default (dict) .Values.externalDatabase }}
+            {{- $extEnabled := default false $ext.enabled }}
+            {{- $maria := default (dict) .Values.mariadb }}
+            {{- $mariaEnabled := default false $maria.enabled }}
+            {{- $mariaAuth := default (dict) $maria.auth }}
 
             {{- if $extEnabled }}
             - name: LB_DATABASE_HOSTSPEC
@@ -222,8 +222,8 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
 
-          {{- $l := default (dict) .Values.livenessProbe -}}
-          {{- $r := default (dict) .Values.readinessProbe -}}
+          {{- $l := default (dict) .Values.livenessProbe }}
+          {{- $r := default (dict) .Values.readinessProbe }}
 
           livenessProbe:
             httpGet:
@@ -269,10 +269,10 @@ spec:
               mountPath: /config
             {{- end }}
 
-            {{- $p := default (dict) .Values.persistence -}}
-            {{- $logs := default (dict) $p.logs -}}
-            {{- $images := default (dict) $p.uploadsImages -}}
-            {{- $res := default (dict) $p.uploadsReservation -}}
+            {{- $p := default (dict) .Values.persistence }}
+            {{- $logs := default (dict) $p.logs }}
+            {{- $images := default (dict) $p.uploadsImages }}
+            {{- $res := default (dict) $p.uploadsReservation }}
 
             {{- if $logs.enabled }}
             - name: logs
@@ -287,7 +287,7 @@ spec:
               mountPath: {{ $res.mountPath | quote }}
             {{- end }}
 
-            {{- $fav := default (dict) .Values.favicon -}}
+            {{- $fav := default (dict) .Values.favicon }}
             {{- if $fav.enabled }}
             - name: favicon
               mountPath: {{ $fav.path | quote }}
@@ -357,10 +357,10 @@ spec:
                 path: .htaccess
         {{- end }}
 
-        {{- $p := default (dict) .Values.persistence -}}
-        {{- $logs := default (dict) $p.logs -}}
-        {{- $images := default (dict) $p.uploadsImages -}}
-        {{- $res := default (dict) $p.uploadsReservation -}}
+        {{- $p := default (dict) .Values.persistence }}
+        {{- $logs := default (dict) $p.logs }}
+        {{- $images := default (dict) $p.uploadsImages }}
+        {{- $res := default (dict) $p.uploadsReservation }}
 
         {{- if $logs.enabled }}
         - name: logs
@@ -395,7 +395,7 @@ spec:
           {{- end }}
         {{- end }}
 
-        {{- $fav := default (dict) .Values.favicon -}}
+        {{- $fav := default (dict) .Values.favicon }}
         {{- if $fav.enabled }}
         - name: favicon
           {{- if eq (default "configmap" $fav.type) "secret" }}
