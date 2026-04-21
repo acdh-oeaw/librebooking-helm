@@ -163,4 +163,5 @@ config:
   ldapConfigMapName: librebooking-ldap-config         # key: ldap.config.php (optional)
   ldapSecretName: ""                                  # Alternative to configMap
   apacheConfigMapName: librebooking-apache-config     # key: proxy-headers.conf - handles X-Forwarded-* headers for reverse proxy
+  htaccessConfigMapName: librebooking-htaccess        # key: .htaccess - override to use internal rewrites instead of external redirects
   reloadToken: "v1"

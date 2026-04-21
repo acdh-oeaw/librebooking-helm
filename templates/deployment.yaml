@@ -26,7 +26,7 @@ spec:
 
       serviceAccountName: {{ include "librebooking.serviceAccountName" . }}
 
-      {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName }}
+      {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName .Values.config.htaccessConfigMapName }}
       initContainers:
         - name: copy-config
           image: busybox:1.36.1
@@ -73,6 +73,17 @@ spec:
               fi
               {{- end }}
               
+              {{- if .Values.config.htaccessConfigMapName }}
+              echo "Checking /source/htaccess:"
+              ls -la /source/htaccess/ || echo "Directory not found or empty"
+              if [ -f /source/htaccess/.htaccess ]; then
+                echo "Copying /source/htaccess/.htaccess to /config/.htaccess"
+                cp /source/htaccess/.htaccess /config/.htaccess
+              else
+                echo "WARNING: /source/htaccess/.htaccess not found"
+              fi
+              {{- end }}
+              
               # Set ownership to www-data (UID 33) and permissions so sed -i can create temp files
               echo "Setting permissions on /config directory and files..."
               chown -R 33:33 /config
@@ -88,6 +99,17 @@ spec:
                 cp /config/proxy-headers.conf /etc/apache2/conf-enabled/proxy-headers.conf
                 chmod 644 /etc/apache2/conf-enabled/proxy-headers.conf
                 echo "Apache proxy headers config installed successfully"
+              fi
+              {{- end }}
+              
+              {{- if .Values.config.htaccessConfigMapName }}
+              # Copy .htaccess override to document root (we're root in init container)
+              echo "Installing custom .htaccess file..."
+              if [ -f /config/.htaccess ]; then
+                cp /config/.htaccess /var/www/html/.htaccess
+                chmod 644 /var/www/html/.htaccess
+                chown 33:33 /var/www/html/.htaccess
+                echo "Custom .htaccess installed successfully"
               fi
               {{- end }}
               
@@ -109,7 +131,10 @@ spec:
             - name: apache-config
               mountPath: /source/apache
             {{- end }}
-      {{- end }}
+            {{- if .Values.config.htaccessConfigMapName }}
+            - name: htaccess-config
+              mountPath: /source/htaccess
+            {{- end }}
 
       {{- with .Values.podSecurityContext }}
       securityContext:
@@ -312,6 +337,15 @@ spec:
             items:
               - key: proxy-headers.conf
                 path: proxy-headers.conf
+        {{- end }}
+
+        {{- if .Values.config.htaccessConfigMapName }}
+        - name: htaccess-config
+          configMap:
+            name: {{ .Values.config.htaccessConfigMapName | quote }}
+            items:
+              - key: .htaccess
+                path: .htaccess
         {{- end }}
 
         {{- $p := default (dict) .Values.persistence -}}
