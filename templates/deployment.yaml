@@ -181,31 +181,35 @@ spec:
                   key: {{ $installSecretKey | quote }}
 
             # Database configuration
-            {{- $dbExternalEnabled := dig "externalDatabase" "enabled" false .Values -}}
-            {{- $mariadbEnabled := dig "mariadb" "enabled" false .Values -}}
-            {{- if $dbExternalEnabled }}
+            {{- $ext := default (dict) .Values.externalDatabase -}}
+            {{- $extEnabled := default false $ext.enabled -}}
+            {{- $maria := default (dict) .Values.mariadb -}}
+            {{- $mariaEnabled := default false $maria.enabled -}}
+            {{- $mariaAuth := default (dict) $maria.auth -}}
+
+            {{- if $extEnabled }}
             - name: LB_DATABASE_HOSTSPEC
-              value: {{ dig "externalDatabase" "hostspec" "" .Values | quote }}
+              value: {{ default "" $ext.hostspec | quote }}
             - name: LB_DATABASE_NAME
-              value: {{ dig "externalDatabase" "name" "" .Values | quote }}
+              value: {{ default "" $ext.name | quote }}
             - name: LB_DATABASE_USER
-              value: {{ dig "externalDatabase" "user" "" .Values | quote }}
+              value: {{ default "" $ext.user | quote }}
             - name: LB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (printf "%s-db" (include "librebooking.fullname" .)) (dig "externalDatabase" "existingSecretName" "" .Values) | quote }}
-                  key: {{ default "db-password" (dig "externalDatabase" "existingSecretKey" "" .Values) | quote }}
-            {{- else if $mariadbEnabled }}
+                  name: {{ default (printf "%s-db" (include "librebooking.fullname" .)) $ext.existingSecretName | quote }}
+                  key: {{ default "db-password" $ext.existingSecretKey | quote }}
+            {{- else if $mariaEnabled }}
             - name: LB_DATABASE_HOSTSPEC
               value: {{ printf "%s-mariadb" (include "librebooking.fullname" .) | quote }}
             - name: LB_DATABASE_NAME
-              value: {{ dig "mariadb" "auth" "database" "" .Values | quote }}
+              value: {{ default "" $mariaAuth.database | quote }}
             - name: LB_DATABASE_USER
-              value: {{ dig "mariadb" "auth" "username" "" .Values | quote }}
+              value: {{ default "" $mariaAuth.username | quote }}
             - name: LB_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (printf "%s-mariadb" (include "librebooking.fullname" .)) (dig "mariadb" "auth" "existingSecretName" "" .Values) | quote }}
+                  name: {{ default (printf "%s-mariadb" (include "librebooking.fullname" .)) $mariaAuth.existingSecretName | quote }}
                   key: mysql-password
             {{- end }}
 
