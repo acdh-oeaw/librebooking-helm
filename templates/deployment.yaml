@@ -249,6 +249,20 @@ spec:
               mountPath: /config
             {{- end }}
 
+            {{- if .Values.config.htaccessConfigMapName }}
+            # Mount the .htaccess file directly to override the image's default
+            - name: htaccess-config
+              subPath: .htaccess
+              mountPath: /var/www/html/.htaccess
+            {{- end }}
+
+            {{- if .Values.config.apacheConfigMapName }}
+            # Mount proxy-headers.conf to Apache config directory
+            - name: apache-config
+              subPath: proxy-headers.conf
+              mountPath: /etc/apache2/conf-available/proxy-headers.conf
+            {{- end }}
+
             {{- $p := default (dict) .Values.persistence }}
             {{- $logs := default (dict) $p.logs }}
             {{- $images := default (dict) $p.uploadsImages }}

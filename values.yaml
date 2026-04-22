@@ -58,7 +58,8 @@ app:
 
   # Optional
   appPath: ""                             # APP_PATH (e.g., /librebooking)
-  scriptUrl: ""                           # LB_SCRIPT_URL - Override app URL (e.g., https://booking.example.org/Web)
+  # IMPORTANT: Must be set when behind a reverse proxy to avoid :8080 in URLs
+  scriptUrl: "https://librebooking.acdh-dev.oeaw.ac.at/Web"  # LB_SCRIPT_URL - Override app URL (e.g., https://booking.example.org/Web)
 
 # Persistence (Kubernetes PVCs instead of bind mounts)
 persistence:
