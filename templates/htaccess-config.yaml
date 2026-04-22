@@ -8,16 +8,20 @@ metadata:
 data:
   .htaccess: |
     RewriteEngine On
+    RewriteBase /
     
-    # Internal rewrite: Redirect requests that are not under /Web to /Web
-    # Using PT (pass through) flag instead of R=301 to avoid external redirect
-    # This avoids generating a Location header with the wrong port
-    RewriteCond %{REQUEST_URI} !^/Web(/|$)
-    RewriteRule ^(.*)$ /Web/$1 [PT,L]
+    # Don't rewrite requests already under /Web
+    RewriteRule ^Web/ - [L]
     
-    # Uncomment the following two lines to force HTTPS (use H flag for internal handling)
-    #RewriteCond %{HTTPS} off
-    #RewriteRule .* https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    # Rewrite all other requests to /Web
+    RewriteRule ^(.*)$ Web/$1 [L]
+    
+    # Auto-prepend file for initialization (defines ROOT_DIR, handles X-Forwarded headers, etc.)
+    php_value auto_prepend_file "/var/www/html/prepend.php"
+    
+    # Error handling
+    php_value error_reporting "E_ALL & ~E_WARNING"
+    php_flag display_errors Off
     
     #Header Set Access-Control-Allow-Origin "*"
     #Header add Access-Control-Allow-Headers "origin, x-requested-with, content-type"

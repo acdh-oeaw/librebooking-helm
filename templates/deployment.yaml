@@ -27,7 +27,7 @@ spec:
 
       serviceAccountName: {{ include "librebooking.serviceAccountName" . }}
 
-      {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName .Values.config.htaccessConfigMapName }}
+      {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName .Values.config.htaccessConfigMapName .Values.config.prependPhpConfigMapName }}
       initContainers:
         - name: copy-config
           image: busybox:1.36.1
@@ -57,7 +57,10 @@ spec:
               {{- end }}
 
               {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
-              echo "Checking /source/ldap:"
+              {{- if .Values.config.ldapConfigMapName }}
+              echo "Skipping ldap config copy - using direct ConfigMap mount at /config/ldap.config.php"
+              {{- else }}
+              echo "Copying ldap Secret from /source/ldap/ldap.config.php to /config/ldap.config.php"
               ls -la /source/ldap/ || echo "Directory not found or empty"
               if [ -f /source/ldap/ldap.config.php ]; then
                 echo "Copying /source/ldap/ldap.config.php to /config/ldap.config.php"
@@ -65,6 +68,7 @@ spec:
               else
                 echo "WARNING: /source/ldap/ldap.config.php not found"
               fi
+              {{- end }}
               {{- end }}
 
               {{- if .Values.config.apacheConfigMapName }}
@@ -86,6 +90,17 @@ spec:
                 cp /source/htaccess/.htaccess /config/.htaccess
               else
                 echo "WARNING: /source/htaccess/.htaccess not found"
+              fi
+              {{- end }}
+
+              {{- if .Values.config.prependPhpConfigMapName }}
+              echo "Checking /source/prepend:"
+              ls -la /source/prepend/ || echo "Directory not found or empty"
+              if [ -f /source/prepend/prepend.php ]; then
+                echo "Copying /source/prepend/prepend.php to /config/prepend.php"
+                cp /source/prepend/prepend.php /config/prepend.php
+              else
+                echo "WARNING: /source/prepend/prepend.php not found"
               fi
               {{- end }}
 
@@ -118,6 +133,10 @@ spec:
             {{- if .Values.config.htaccessConfigMapName }}
             - name: htaccess-config
               mountPath: /source/htaccess
+            {{- end }}
+            {{- if .Values.config.prependPhpConfigMapName }}
+            - name: prepend-config
+              mountPath: /source/prepend
             {{- end }}
       {{- end }}
 
@@ -253,7 +272,7 @@ spec:
           {{- end }}
 
           volumeMounts:
-            {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName .Values.config.htaccessConfigMapName }}
+            {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName .Values.config.htaccessConfigMapName .Values.config.prependPhpConfigMapName }}
             - name: config-copy
               mountPath: /config
             {{- end }}
@@ -263,6 +282,20 @@ spec:
             - name: htaccess-config
               subPath: .htaccess
               mountPath: /var/www/html/.htaccess
+            {{- end }}
+
+            {{- if .Values.config.prependPhpConfigMapName }}
+            # Mount prepend.php to /var/www/html/prepend.php (auto-loaded via .htaccess php_value auto_prepend_file)
+            - name: prepend-config
+              subPath: prepend.php
+              mountPath: /var/www/html/prepend.php
+            {{- end }}
+
+            {{- if .Values.config.ldapConfigMapName }}
+            # Mount ldap.config.php to /config where it's symlinked from /var/www/html/config/
+            - name: ldap-config
+              subPath: ldap.config.php
+              mountPath: /config/ldap.config.php
             {{- end }}
 
             {{- if .Values.config.apacheConfigMapName }}
@@ -358,6 +391,15 @@ spec:
             items:
               - key: .htaccess
                 path: .htaccess
+        {{- end }}
+
+        {{- if .Values.config.prependPhpConfigMapName }}
+        - name: prepend-config
+          configMap:
+            name: {{ .Values.config.prependPhpConfigMapName | quote }}
+            items:
+              - key: prepend.php
+                path: prepend.php
         {{- end }}
 
         {{- $p := default (dict) .Values.persistence }}

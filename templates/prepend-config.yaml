@@ -1,0 +1,30 @@
+{{- if .Values.config.prependPhpConfigMapName }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.config.prependPhpConfigMapName }}
+  labels:
+    {{- include "librebooking.labels" . | nindent 4 }}
+data:
+  prepend.php: |
+    <?php
+    // prepend.php — učitava se pre svake PHP skripte
+    
+    // Apsolutni app root, sa završnom kosom crtom
+    if (!defined('ROOT_DIR')) {
+        define('ROOT_DIR', '/var/www/html/');
+    }
+    
+    // Dodaj root u include_path radi drugih relativnih include-ova
+    set_include_path(get_include_path() . PATH_SEPARATOR . ROOT_DIR);
+    
+    // Proxy fix za generisanje https linkova
+    if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+        $_SERVER['HTTPS'] = ($_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ? 'on' : '';
+    }
+    
+    // Default timezone da izbegne notice-e
+    if (!ini_get('date.timezone')) {
+        @date_default_timezone_set('{{ .Values.app.defaultTimezone | default "UTC" }}');
+    }
+{{- end }}
