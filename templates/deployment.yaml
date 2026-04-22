@@ -138,6 +138,7 @@ spec:
               protocol: TCP
 
           env:
+            {{- if not .Values.config.bookingConfigMapName }}
             - name: LB_DEFAULT_TIMEZONE
               value: {{ default "UTC" .Values.app.defaultTimezone | quote }}
             - name: LB_LOGGING_FOLDER
@@ -146,12 +147,14 @@ spec:
               value: {{ default "INFO" .Values.app.loggingLevel | quote }}
             - name: LB_LOGGING_SQL
               value: {{ default "false" .Values.app.loggingSql | quote }}
+            {{- end }}
             {{- if .Values.app.appPath }}
             - name: APP_PATH
               value: {{ .Values.app.appPath | quote }}
             {{- end }}
 
-            # Installer password (from Secret)
+            # Installer password (skip if using ConfigMap with config.php)
+            {{- if not .Values.config.bookingConfigMapName }}
             {{- $installSecretName := default (printf "%s-install" (include "librebooking.fullname" .)) .Values.app.existingSecretName }}
             {{- $installSecretKey  := default "LB_INSTALL_PASSWORD" .Values.app.existingSecretKey }}
             - name: LB_INSTALL_PASSWORD
@@ -159,6 +162,7 @@ spec:
                 secretKeyRef:
                   name: {{ $installSecretName | quote }}
                   key: {{ $installSecretKey | quote }}
+            {{- end }}
 
             # Database configuration (skip if using ConfigMap with config.php)
             {{- $ext := default (dict) .Values.externalDatabase }}

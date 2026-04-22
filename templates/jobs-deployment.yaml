@@ -23,6 +23,7 @@ spec:
           imagePullPolicy: {{ .Values.jobs.image.pullPolicy }}
           command: ["supercronic", "/config/lb-jobs-cron"]
           env:
+            {{- if not .Values.config.bookingConfigMapName }}
             - name: LB_DEFAULT_TIMEZONE
               value: "{{ .Values.app.defaultTimezone }}"
             - name: LB_LOGGING_FOLDER
@@ -31,16 +32,19 @@ spec:
               value: "{{ .Values.app.loggingLevel }}"
             - name: LB_LOGGING_SQL
               value: "{{ .Values.app.loggingSql }}"
+            {{- end }}
             {{- if .Values.app.appPath }}
             - name: APP_PATH
               value: "{{ .Values.app.appPath }}"
             {{- end }}
 
+            {{- if not .Values.config.bookingConfigMapName }}
             - name: LB_INSTALL_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.app.existingSecretName | default (printf "%s-install" (include "librebooking.fullname" .)) }}
                   key: {{ .Values.app.existingSecretKey | default "LB_INSTALL_PASSWORD" }}
+            {{- end }}
 
             {{- if and (not .Values.config.bookingConfigMapName) .Values.externalDatabase.enabled }}
             - name: LB_DATABASE_HOSTSPEC
