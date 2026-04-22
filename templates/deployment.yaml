@@ -160,14 +160,15 @@ spec:
                   name: {{ $installSecretName | quote }}
                   key: {{ $installSecretKey | quote }}
 
-            # Database configuration
+            # Database configuration (skip if using ConfigMap with config.php)
             {{- $ext := default (dict) .Values.externalDatabase }}
             {{- $extEnabled := default false $ext.enabled }}
             {{- $maria := default (dict) .Values.mariadb }}
             {{- $mariaEnabled := default false $maria.enabled }}
             {{- $mariaAuth := default (dict) $maria.auth }}
+            {{- $hasConfigMap := .Values.config.bookingConfigMapName }}
 
-            {{- if $extEnabled }}
+            {{- if and (not $hasConfigMap) $extEnabled }}
             - name: LB_DATABASE_HOSTSPEC
               value: {{ default "" $ext.hostspec | quote }}
             - name: LB_DATABASE_NAME
@@ -179,7 +180,7 @@ spec:
                 secretKeyRef:
                   name: {{ default (printf "%s-db" (include "librebooking.fullname" .)) $ext.existingSecretName | quote }}
                   key: {{ default "db-password" $ext.existingSecretKey | quote }}
-            {{- else if $mariaEnabled }}
+            {{- else if and (not $hasConfigMap) $mariaEnabled }}
             - name: LB_DATABASE_HOSTSPEC
               value: {{ printf "%s-mariadb" (include "librebooking.fullname" .) | quote }}
             - name: LB_DATABASE_NAME

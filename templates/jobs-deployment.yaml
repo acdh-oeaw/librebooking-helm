@@ -42,7 +42,7 @@ spec:
                   name: {{ .Values.app.existingSecretName | default (printf "%s-install" (include "librebooking.fullname" .)) }}
                   key: {{ .Values.app.existingSecretKey | default "LB_INSTALL_PASSWORD" }}
 
-            {{- if .Values.externalDatabase.enabled }}
+            {{- if and (not .Values.config.bookingConfigMapName) .Values.externalDatabase.enabled }}
             - name: LB_DATABASE_HOSTSPEC
               value: "{{ .Values.externalDatabase.hostspec }}"
             - name: LB_DATABASE_NAME
@@ -54,7 +54,7 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.externalDatabase.existingSecretName | default (printf "%s-db" (include "librebooking.fullname" .)) }}
                   key: {{ .Values.externalDatabase.existingSecretKey | default "db-password" }}
-            {{- else if .Values.mariadb.enabled }}
+            {{- else if and (not .Values.config.bookingConfigMapName) .Values.mariadb.enabled }}
             - name: LB_DATABASE_HOSTSPEC
               value: {{ printf "%s-mariadb" (include "librebooking.fullname" .) | quote }}
             - name: LB_DATABASE_NAME
