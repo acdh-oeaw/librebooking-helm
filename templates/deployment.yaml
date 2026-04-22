@@ -347,13 +347,13 @@ spec:
           secret:
             secretName: {{ .Values.config.bookingSecretName | quote }}
             items:
-              - key: config.php
+              - key: {{ .Values.config.bookingConfigMapKey | default "config.php" }}
                 path: config.php
           {{- else }}
           configMap:
             name: {{ .Values.config.bookingConfigMapName | quote }}
             items:
-              - key: config.php
+              - key: {{ .Values.config.bookingConfigMapKey | default "config.php" }}
                 path: config.php
           {{- end }}
         {{- end }}
@@ -364,13 +364,13 @@ spec:
           secret:
             secretName: {{ .Values.config.ldapSecretName | quote }}
             items:
-              - key: ldap.config.php
+              - key: {{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }}
                 path: ldap.config.php
           {{- else }}
           configMap:
             name: {{ .Values.config.ldapConfigMapName | quote }}
             items:
-              - key: ldap.config.php
+              - key: {{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }}
                 path: ldap.config.php
           {{- end }}
         {{- end }}

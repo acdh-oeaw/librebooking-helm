@@ -160,8 +160,10 @@ extraVolumeMounts: []
 
 config:
   bookingConfigMapName: librebooking-booking-config   # key: config.php
+  bookingConfigMapKey: "config.php"                   # ConfigMap key name for booking config
   bookingSecretName: ""                               # Alternative to configMap
-  ldapConfigMapName: librebooking-ldap-config         # key: ldap.config.php (optional)
+  ldapConfigMapName: librebooking-ldap-config         # key: Ldap.config.php (note: case-sensitive, expect capital L)
+  ldapConfigMapKey: "Ldap.config.php"                 # ConfigMap key name for LDAP config
   ldapSecretName: ""                                  # Alternative to configMap
   apacheConfigMapName: librebooking-apache-config     # key: proxy-headers.conf - handles X-Forwarded-* headers for reverse proxy
   htaccessConfigMapName: librebooking-htaccess        # key: .htaccess - override to use internal rewrites instead of external redirects
