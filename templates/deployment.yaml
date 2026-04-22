@@ -43,9 +43,10 @@ spec:
 
               {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName }}
               {{- if .Values.config.bookingConfigMapName }}
-              echo "Skipping booking config copy - using direct ConfigMap mount at /var/www/html/config/config.php"
+              echo "Copying booking ConfigMap from /source/booking/config.php to /config/config.php"
               {{- else }}
-              echo "Checking /source/booking:"
+              echo "Copying booking Secret from /source/booking/config.php to /config/config.php"
+              {{- end }}
               ls -la /source/booking/ || echo "Directory not found or empty"
               if [ -f /source/booking/config.php ]; then
                 echo "Copying /source/booking/config.php to /config/config.php"
@@ -53,7 +54,6 @@ spec:
               else
                 echo "WARNING: /source/booking/config.php not found"
               fi
-              {{- end }}
               {{- end }}
 
               {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
@@ -256,13 +256,6 @@ spec:
             {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName .Values.config.htaccessConfigMapName }}
             - name: config-copy
               mountPath: /config
-            {{- end }}
-
-            {{- if .Values.config.bookingConfigMapName }}
-            # Mount config.php to /config where the image creates symlinks to it
-            - name: booking-config
-              subPath: config.php
-              mountPath: /config/config.php
             {{- end }}
 
             {{- if .Values.config.htaccessConfigMapName }}
