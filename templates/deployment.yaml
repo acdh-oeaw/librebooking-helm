@@ -58,17 +58,17 @@ spec:
 
               {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
               {{- if .Values.config.ldapConfigMapName }}
-              echo "Skipping ldap config copy - using direct ConfigMap mount at /config/ldap.config.php"
+              echo "Copying ldap ConfigMap from /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} to /config/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }}"
               {{- else }}
-              echo "Copying ldap Secret from /source/ldap/ldap.config.php to /config/ldap.config.php"
-              ls -la /source/ldap/ || echo "Directory not found or empty"
-              if [ -f /source/ldap/ldap.config.php ]; then
-                echo "Copying /source/ldap/ldap.config.php to /config/ldap.config.php"
-                cp /source/ldap/ldap.config.php /config/ldap.config.php
-              else
-                echo "WARNING: /source/ldap/ldap.config.php not found"
-              fi
+              echo "Copying ldap Secret from /source/ldap/ to /config/"
               {{- end }}
+              ls -la /source/ldap/ || echo "Directory not found or empty"
+              if [ -f /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} ]; then
+                echo "Copying /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} to /config/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }}"
+                cp /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} /config/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }}
+              else
+                echo "WARNING: /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} not found"
+              fi
               {{- end }}
 
               {{- if .Values.config.apacheConfigMapName }}
@@ -291,13 +291,6 @@ spec:
               mountPath: /var/www/html/prepend.php
             {{- end }}
 
-            {{- if .Values.config.ldapConfigMapName }}
-            # Mount ldap.config.php to /config where it's symlinked from /var/www/html/config/
-            - name: ldap-config
-              subPath: ldap.config.php
-              mountPath: /config/ldap.config.php
-            {{- end }}
-
             {{- if .Values.config.apacheConfigMapName }}
             # Mount proxy-headers.conf to Apache config directory
             - name: apache-config
@@ -365,13 +358,13 @@ spec:
             secretName: {{ .Values.config.ldapSecretName | quote }}
             items:
               - key: {{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }}
-                path: ldap.config.php
+                path: {{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }}
           {{- else }}
           configMap:
             name: {{ .Values.config.ldapConfigMapName | quote }}
             items:
               - key: {{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }}
-                path: ldap.config.php
+                path: {{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }}
           {{- end }}
         {{- end }}
 
