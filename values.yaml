@@ -14,6 +14,8 @@ service:
   annotations: {}
 
 ingress:
+  labels: {}
+  # Example: ID: "9356"
   annotations:
     cert-manager.io/cluster-issuer: acdh-prod
   enabled: false

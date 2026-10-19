@@ -1,10 +1,14 @@
 {{- if .Values.ingress.enabled }}
+{{- $labels := include "librebooking.labels" . | fromYaml }}
+{{- with .Values.ingress.labels }}
+{{- $labels = merge $labels . }}
+{{- end }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ include "librebooking.fullname" . }}
   labels:
-    {{- include "librebooking.labels" . | nindent 4 }}
+    {{- toYaml $labels | nindent 4 }}
   annotations:
     {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}

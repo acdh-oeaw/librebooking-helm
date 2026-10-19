@@ -174,6 +174,8 @@ Background jobs (optional)
 Service/Ingress
 - service.type: ClusterIP, NodePort, or LoadBalancer (default: ClusterIP)
 - ingress.enabled + className/hosts/tls: Enable and configure Ingress
+- ingress.labels: Additional labels added to the Ingress resource
+  - Example: `ID: "9356"` for the Redmine service issue ID
 
 Resources
 - resources: CPU/memory requests/limits for the app container
