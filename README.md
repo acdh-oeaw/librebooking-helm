@@ -121,6 +121,7 @@ LDAP
 - Put the bind password in an existing Secret and set `ldap.existingSecretName` / `ldap.existingSecretKey`.
 - `ldap.bindPassword` can create a Secret from a Helm value, but the value is also stored in Helm release data; prefer an existing Secret for production.
 - The generated config is mounted at the LibreBooking LDAP config path. Existing external LDAP ConfigMap/Secret configuration remains supported when `ldap.enabled` is false.
+- For a legacy external ConfigMap, set `config.ldapConfigMapName` explicitly. It is empty by default to avoid referencing a removed ConfigMap.
 
 Example:
 ```yaml

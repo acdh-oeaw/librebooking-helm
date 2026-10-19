@@ -162,7 +162,7 @@ config:
   bookingConfigMapName: librebooking-booking-config   # key: config.php
   bookingConfigMapKey: "config.php"                   # ConfigMap key name for booking config
   bookingSecretName: ""                               # Alternative to configMap
-  ldapConfigMapName: librebooking-ldap-config         # Legacy external LDAP ConfigMap
+  ldapConfigMapName: ""                               # Set only for a legacy external LDAP ConfigMap
   ldapConfigMapKey: "Ldap.config.php"                 # Legacy ConfigMap/Secret key
   ldapSecretName: ""                                  # Legacy external LDAP Secret
   apacheConfigMapName: librebooking-apache-config     # key: proxy-headers.conf - handles X-Forwarded-* headers for reverse proxy
