@@ -100,6 +100,15 @@ favicon:
   key: "favicon.ico"  # Key containing the icon data
   path: "/var/www/html/Web/favicon.ico"
 
+# Optional LibreBooking header logo override
+logo:
+  enabled: false
+  # One of: "secret" or "configMap"
+  type: "secret"
+  name: ""          # Name of Secret/ConfigMap
+  key: "librebooking.png"  # Key containing the logo image
+  path: "/var/www/html/Web/img/librebooking.png"
+
 # External DB; disable internal MariaDB when enabled
 externalDatabase:
   enabled: false

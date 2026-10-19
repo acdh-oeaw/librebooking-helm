@@ -162,6 +162,11 @@ Favicon
 - favicon.type: secret or configMap
 - favicon.name/key: the name/key where the icon is stored
 
+Logo
+- logo.enabled: true to mount a single file to /var/www/html/Web/img/librebooking.png
+- logo.type: secret or configMap
+- logo.name/key: the name/key where the logo image is stored
+
 Background jobs (optional)
 - jobs.enabled: Deploys a “jobs” Deployment that runs `supercronic /config/lb-jobs-cron`
 - jobs.image.*: Image settings for the jobs pod (defaults to same LibreBooking image)

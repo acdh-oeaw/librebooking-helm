@@ -318,6 +318,14 @@ spec:
               readOnly: true
             {{- end }}
 
+            {{- $logo := default (dict) .Values.logo }}
+            {{- if $logo.enabled }}
+            - name: logo
+              mountPath: {{ $logo.path | quote }}
+              subPath: "librebooking.png"
+              readOnly: true
+            {{- end }}
+
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -443,6 +451,24 @@ spec:
           {{- else }}
           configMap:
             name: {{ $fav.name | quote }}
+          {{- end }}
+        {{- end }}
+
+        {{- $logo := default (dict) .Values.logo }}
+        {{- if $logo.enabled }}
+        - name: logo
+          {{- if eq (default "secret" $logo.type) "secret" }}
+          secret:
+            secretName: {{ $logo.name | quote }}
+            items:
+              - key: {{ $logo.key | quote }}
+                path: librebooking.png
+          {{- else }}
+          configMap:
+            name: {{ $logo.name | quote }}
+            items:
+              - key: {{ $logo.key | quote }}
+                path: librebooking.png
           {{- end }}
         {{- end }}
 
