@@ -7,7 +7,7 @@ metadata:
     {{- include "librebooking.labels" . | nindent 4 }}
 data:
   proxy-headers.conf: |
-    # Apache configuration for handling X-Forwarded-* headers from nginx proxy
+    # Apache configuration for handling X-Forwarded-* headers from the ingress proxy
     # This ensures URLs are generated correctly when LibreBooking is behind a reverse proxy
     
     # Enable mod_remoteip to trust X-Forwarded-For headers

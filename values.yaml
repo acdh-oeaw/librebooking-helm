@@ -1,6 +1,6 @@
 image:
   repository: librebooking/librebooking
-  tag: "4.3.0"
+  tag: "7.1.0"
   pullPolicy: IfNotPresent
 
 nameOverride: ""
@@ -17,7 +17,7 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: acdh-prod
   enabled: false
-  className: nginx
+  className: traefik
   hosts:
     - host: booking.example.org
       paths:
@@ -142,7 +142,7 @@ jobs:
   # Use the same image by default
   image:
     repository: librebooking/librebooking
-    tag: "4.3.0"
+    tag: "7.1.0"
     pullPolicy: IfNotPresent
   # If your jobs require different resources:
   resources: {}
@@ -162,10 +162,31 @@ config:
   bookingConfigMapName: librebooking-booking-config   # key: config.php
   bookingConfigMapKey: "config.php"                   # ConfigMap key name for booking config
   bookingSecretName: ""                               # Alternative to configMap
-  ldapConfigMapName: librebooking-ldap-config         # key: Ldap.config.php (note: case-sensitive, expect capital L)
-  ldapConfigMapKey: "Ldap.config.php"                 # ConfigMap key name for LDAP config
-  ldapSecretName: ""                                  # Alternative to configMap
+  ldapConfigMapName: librebooking-ldap-config         # Legacy external LDAP ConfigMap
+  ldapConfigMapKey: "Ldap.config.php"                 # Legacy ConfigMap/Secret key
+  ldapSecretName: ""                                  # Legacy external LDAP Secret
   apacheConfigMapName: librebooking-apache-config     # key: proxy-headers.conf - handles X-Forwarded-* headers for reverse proxy
   htaccessConfigMapName: librebooking-htaccess        # key: .htaccess - override to use internal rewrites instead of external redirects
   prependPhpConfigMapName: librebooking-prepend       # key: prepend.php - loaded before every PHP script (ROOT_DIR, X-Forwarded-Proto, timezone)
   reloadToken: "v1"
+
+ldap:
+  enabled: false
+  host: "ldap://localhost"
+  port: 389
+  version: 3
+  starttls: false
+  binddn: ""
+  bindPassword: ""              # Prefer existingSecretName for production
+  existingSecretName: ""
+  existingSecretKey: "bindpw"
+  basedn: ""
+  filter: ""
+  scope: "sAMAccountName"
+  requiredGroup: ""
+  databaseAuthWhenLdapUserNotFound: true
+  debugEnabled: false
+  attributeMapping: "sAMAccountName=sAMAccountName,sn=sn,givenname=givenname,mail=mail,telephonenumber=telephonenumber,physicaldeliveryofficename=physicaldeliveryofficename,title=title"
+  userIdAttribute: "sAMAccountName"
+  syncGroups: false
+  preventCleanUsername: false

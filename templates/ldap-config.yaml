@@ -1,0 +1,33 @@
+{{- if .Values.ldap.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-ldap-config" (include "librebooking.fullname" .) }}
+  labels:
+    {{- include "librebooking.labels" . | nindent 4 }}
+data:
+  ldap.config.php: |
+    <?php
+    return [
+        'settings' => [
+            'ldap' => [
+                'host' => {{ .Values.ldap.host | toJson }},
+                'port' => {{ .Values.ldap.port }},
+                'version' => {{ .Values.ldap.version }},
+                'starttls' => {{ .Values.ldap.starttls }},
+                'binddn' => {{ .Values.ldap.binddn | toJson }},
+                'bindpw' => getenv('LB_LDAP_BINDPW') ?: '',
+                'basedn' => {{ .Values.ldap.basedn | toJson }},
+                'filter' => {{ .Values.ldap.filter | toJson }},
+                'scope' => {{ .Values.ldap.scope | toJson }},
+                'required.group' => {{ .Values.ldap.requiredGroup | toJson }},
+                'database.auth.when.ldap.user.not.found' => {{ .Values.ldap.databaseAuthWhenLdapUserNotFound }},
+                'debug.enabled' => {{ .Values.ldap.debugEnabled }},
+                'attribute.mapping' => {{ .Values.ldap.attributeMapping | toJson }},
+                'user.id.attribute' => {{ .Values.ldap.userIdAttribute | toJson }},
+                'sync.groups' => {{ .Values.ldap.syncGroups }},
+                'prevent.clean.username' => {{ .Values.ldap.preventCleanUsername }},
+            ],
+        ],
+    ];
+{{- end }}

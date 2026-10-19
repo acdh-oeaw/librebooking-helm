@@ -27,7 +27,7 @@ spec:
 
       serviceAccountName: {{ include "librebooking.serviceAccountName" . }}
 
-      {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName .Values.config.htaccessConfigMapName .Values.config.prependPhpConfigMapName }}
+      {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.ldap.enabled .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName .Values.config.htaccessConfigMapName .Values.config.prependPhpConfigMapName }}
       initContainers:
         - name: copy-config
           image: busybox:1.36.1
@@ -56,16 +56,19 @@ spec:
               fi
               {{- end }}
 
-              {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+              {{- if .Values.ldap.enabled }}
+              echo "Copying generated LDAP configuration to /config/ldap.config.php"
+              cp /source/ldap/ldap.config.php /config/ldap.config.php
+              {{- else if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
               {{- if .Values.config.ldapConfigMapName }}
-              echo "Copying ldap ConfigMap from /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} to /config/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }}"
+              echo "Copying ldap ConfigMap from /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} to /config/ldap.config.php"
               {{- else }}
-              echo "Copying ldap Secret from /source/ldap/ to /config/"
+              echo "Copying ldap Secret from /source/ldap/ to /config/ldap.config.php"
               {{- end }}
               ls -la /source/ldap/ || echo "Directory not found or empty"
               if [ -f /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} ]; then
-                echo "Copying /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} to /config/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }}"
-                cp /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} /config/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }}
+                echo "Copying /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} to /config/ldap.config.php"
+                cp /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} /config/ldap.config.php
               else
                 echo "WARNING: /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} not found"
               fi
@@ -122,7 +125,7 @@ spec:
             - name: booking-config
               mountPath: /source/booking
             {{- end }}
-            {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+            {{- if or .Values.ldap.enabled .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
             - name: ldap-config
               mountPath: /source/ldap
             {{- end }}
@@ -226,6 +229,14 @@ spec:
               value: {{ .Values.app.scriptUrl | quote }}
             {{- end }}
 
+            {{- if and .Values.ldap.enabled (or .Values.ldap.bindPassword .Values.ldap.existingSecretName) }}
+            - name: LB_LDAP_BINDPW
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-ldap-auth" (include "librebooking.fullname" .)) .Values.ldap.existingSecretName | quote }}
+                  key: {{ default "bindpw" .Values.ldap.existingSecretKey | quote }}
+            {{- end }}
+
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -249,7 +260,7 @@ spec:
             periodSeconds: {{ default 10 $r.periodSeconds }}
             failureThreshold: {{ default 3 $r.failureThreshold }}
 
-          {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+          {{- if or .Values.ldap.enabled .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
           lifecycle:
             postStart:
               exec:
@@ -329,7 +340,7 @@ spec:
             {{- end }}
 
       volumes:
-        {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName .Values.config.htaccessConfigMapName }}
+        {{- if or .Values.config.bookingConfigMapName .Values.config.bookingSecretName .Values.ldap.enabled .Values.config.ldapConfigMapName .Values.config.ldapSecretName .Values.config.apacheConfigMapName .Values.config.htaccessConfigMapName }}
         - name: config-copy
           emptyDir: {}
         {{- end }}
@@ -351,7 +362,14 @@ spec:
           {{- end }}
         {{- end }}
 
-        {{- if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
+        {{- if .Values.ldap.enabled }}
+        - name: ldap-config
+          configMap:
+            name: {{ printf "%s-ldap-config" (include "librebooking.fullname" .) | quote }}
+            items:
+              - key: ldap.config.php
+                path: ldap.config.php
+        {{- else if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
         - name: ldap-config
           {{- if .Values.config.ldapSecretName }}
           secret:

@@ -116,6 +116,30 @@ Application
 - app.loggingSql: LB_LOGGING_SQL (default: "false")
 - app.appPath: APP_PATH (e.g., /librebooking)
 
+LDAP
+- Set `ldap.enabled: true` to have the chart generate `Ldap.config.php` from the LDAP values below.
+- Put the bind password in an existing Secret and set `ldap.existingSecretName` / `ldap.existingSecretKey`.
+- `ldap.bindPassword` can create a Secret from a Helm value, but the value is also stored in Helm release data; prefer an existing Secret for production.
+- The generated config is mounted at the LibreBooking LDAP config path. Existing external LDAP ConfigMap/Secret configuration remains supported when `ldap.enabled` is false.
+
+Example:
+```yaml
+ldap:
+  enabled: true
+  host: "ldap://directory.example.org"
+  port: 389
+  version: 3
+  starttls: false
+  binddn: "svc-libro@directory.example.org"
+  existingSecretName: librebooking-ldap-bind
+  existingSecretKey: bindpw
+  basedn: "ou=Locations,dc=example,dc=org"
+  scope: "sAMAccountName"
+  userIdAttribute: "sAMAccountName"
+```
+
+The `librebooking-ldap-bind` Secret must contain the `bindpw` key. The chart already generates the `prepend.php` ConfigMap from `app.defaultTimezone`; it does not need a separately maintained ConfigMap.
+
 Database
 - externalDatabase.enabled: set true to use external DB
 - externalDatabase.hostspec: LB_DATABASE_HOSTSPEC, e.g. "db.example.com:3306"
@@ -173,7 +197,7 @@ app:
 
 ingress:
   enabled: true
-  className: "nginx"
+  className: "traefik"
   hosts:
     - host: librebooking.example.com
       paths:

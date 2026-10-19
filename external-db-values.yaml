@@ -21,7 +21,7 @@ app:
 
 ingress:
   enabled: true
-  className: "nginx"
+  className: "traefik"
   hosts:
     - host: librebooking.example.com
       paths:
