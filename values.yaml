@@ -172,6 +172,7 @@ config:
 
 ldap:
   enabled: false
+  uri: ""                       # Full URI (or space-separated URIs); overrides host and port
   host: "ldap://localhost"
   port: 389
   version: 3

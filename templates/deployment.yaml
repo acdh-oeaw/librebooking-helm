@@ -57,18 +57,18 @@ spec:
               {{- end }}
 
               {{- if .Values.ldap.enabled }}
-              echo "Copying generated LDAP configuration to /config/ldap.config.php"
-              cp /source/ldap/ldap.config.php /config/ldap.config.php
+              echo "Copying generated LDAP configuration to /config/Ldap.config.php"
+              cp /source/ldap/Ldap.config.php /config/Ldap.config.php
               {{- else if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
               {{- if .Values.config.ldapConfigMapName }}
-              echo "Copying ldap ConfigMap from /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} to /config/ldap.config.php"
+              echo "Copying ldap ConfigMap from /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} to /config/Ldap.config.php"
               {{- else }}
-              echo "Copying ldap Secret from /source/ldap/ to /config/ldap.config.php"
+              echo "Copying ldap Secret from /source/ldap/ to /config/Ldap.config.php"
               {{- end }}
               ls -la /source/ldap/ || echo "Directory not found or empty"
               if [ -f /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} ]; then
-                echo "Copying /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} to /config/ldap.config.php"
-                cp /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} /config/ldap.config.php
+                echo "Copying /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} to /config/Ldap.config.php"
+                cp /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} /config/Ldap.config.php
               else
                 echo "WARNING: /source/ldap/{{ .Values.config.ldapConfigMapKey | default "Ldap.config.php" }} not found"
               fi
@@ -260,23 +260,6 @@ spec:
             periodSeconds: {{ default 10 $r.periodSeconds }}
             failureThreshold: {{ default 3 $r.failureThreshold }}
 
-          {{- if or .Values.ldap.enabled .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
-          lifecycle:
-            postStart:
-              exec:
-                command:
-                  - /bin/sh
-                  - -c
-                  - |
-                    # Create LDAP symlink if config file exists and symlink doesn't already exist
-                    if [ -f /config/ldap.config.php ]; then
-                      if ! [ -e /var/www/html/config/ldap.config.php ]; then
-                        echo "Creating symlink: /var/www/html/config/ldap.config.php -> /config/ldap.config.php"
-                        ln -s /config/ldap.config.php /var/www/html/config/ldap.config.php
-                      fi
-                    fi
-          {{- end }}
-
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -367,8 +350,8 @@ spec:
           configMap:
             name: {{ printf "%s-ldap-config" (include "librebooking.fullname" .) | quote }}
             items:
-              - key: ldap.config.php
-                path: ldap.config.php
+              - key: Ldap.config.php
+                path: Ldap.config.php
         {{- else if or .Values.config.ldapConfigMapName .Values.config.ldapSecretName }}
         - name: ldap-config
           {{- if .Values.config.ldapSecretName }}

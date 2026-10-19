@@ -6,13 +6,12 @@ metadata:
   labels:
     {{- include "librebooking.labels" . | nindent 4 }}
 data:
-  ldap.config.php: |
+  Ldap.config.php: |
     <?php
     return [
         'settings' => [
             'ldap' => [
-                'host' => {{ .Values.ldap.host | toJson }},
-                'port' => {{ .Values.ldap.port }},
+                'uri' => {{- if .Values.ldap.uri }} {{ .Values.ldap.uri | toJson }} {{- else }} {{ printf "%s:%v" (trimSuffix "/" .Values.ldap.host) .Values.ldap.port | toJson }} {{- end }},
                 'version' => {{ .Values.ldap.version }},
                 'starttls' => {{ .Values.ldap.starttls }},
                 'binddn' => {{ .Values.ldap.binddn | toJson }},
